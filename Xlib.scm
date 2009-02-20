@@ -208,6 +208,11 @@ end-of-c-declare
             int
             "XDefaultScreen"))
 
+(define x-screen-count
+  (c-lambda (Display*)     ;; display
+            int
+            "ScreenCount"))
+
 (define x-screen-of-display
   (c-lambda (Display*      ;; display
              int)          ;; screen_number

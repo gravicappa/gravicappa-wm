@@ -108,6 +108,7 @@ x-default-gc
 x-default-gc-of-screen
 x-default-root-window
 x-default-screen
+x-screen-count
 x-default-visual
 x-default-visual-of-screen
 x-draw-string
