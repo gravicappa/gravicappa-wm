@@ -1,34 +1,28 @@
-DEST = uwm.o1
+DEST = xlib uwm.o1
+RUN_CODE = '(load "xlib/Xlib") (load "uwm") (main "-d" "localhost:2")'
 
 LDFLAGS = -lX11
 GSCFLAGS= -ld-options "${LDFLAGS}"
 
 .PHONY: all clean clean-obj run xlib
 
-all: clean-obj Xlib.o1 ${DEST} 
+all: clean-obj ${DEST} 
 
 run: all
-	gsi Xlib -e '(load "uwm") (main)'
+	rlwrap -amc -P "${RUN_CODE}" gsi
 
-run-src: uwm.scm Xlib.o1
+run-src: uwm.scm xlib
 	-rm uwm.o* 2> /dev/null
-	gsi Xlib -e '(load "uwm.scm") (main "-d" "localhost:2")'
+	make run
 
 clean: clean-obj
-	-rm 'Xlib#.scm'
 
-xlib: Xlib.o1
+xlib:
+	make -C xlib
 
 clean-obj:
 	-rm *.o* 2> /dev/null
 
-%.o1 : %.scm
+%.o1 : %.scm xlib
 	gambit-gsc ${GSCFLAGS} $<
-
-Xlib\#.scm: Xlib.scm
-	./make-gambit-include 'Xlib#' < Xlib.scm > Xlib\#.scm
-
-Xlib.o1: Xlib.scm Xlib\#.scm
-	-rm Xlib.o* 2>/dev/null
-	gambit-gsc -ld-options "-lX11" Xlib.scm
 

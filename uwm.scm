@@ -1,28 +1,30 @@
-(include "Xlib#.scm")
+(include "xlib/Xlib#.scm")
 (include "utils.scm")
-(include "screen.scm")
-(include "events.scm")
 
 (define-hook *internal-startup-hook*)
 (define-hook *internal-loop-hook*)
 (define-hook *shutdown-hook*)
+
+(include "screen.scm")
+(include "events.scm")
 
 (define (display-log . args)
   (display (cons ";; " args) (current-error-port))
   (newline (current-error-port)))
 
 (define (handle-x11-event xdisplay ev)
-  (display-log "caught ev: " ev)
+  (display-log "Caught event type: " (x-any-event-type ev)
+							 " data: " ev)
   (let ((handler (table-ref *x11-event-dispatcher* (x-any-event-type ev) #f)))
     (if handler
         (apply handler ev))))
 
 (define (x11-event-hook xdisplay)
-  (display-log "waiting for x11 events")
+  (display-log "Waiting for x11 events.")
   (wait-x11-event xdisplay)
-  (display-log "x11 events")
+  (display-log "Got x11 events.")
   (let loop ((num (x-pending xdisplay)))
-    (display-log num " xevents")
+    (display-log "Has " num " events in queue.")
     (cond ((positive? num)
            (handle-x11-event xdisplay (x-next-event xdisplay))
            (loop (- num 1))))))
