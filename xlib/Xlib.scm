@@ -26,13 +26,10 @@
 
 ;;;============================================================================
 
-(c-declare #<<end-of-c-declare
-
+(c-declare "
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-
-end-of-c-declare
-)
+")
 
 ;; Declare a few types so that the function prototypes use the same
 ;; type names as a C program.
@@ -172,16 +169,20 @@ end-of-c-declare
 (c-define-type Screen*/XFree (pointer Screen (Screen*) "XFree_Screen"))
 (c-define-type XGCValues "XGCValues")
 (c-define-type XGCValues* (pointer XGCValues (XGCValues*)))
-(c-define-type XGCValues*/release-rc (pointer XGCValues (XGCValues*) "release_rc_XGCValues"))
+(c-define-type XGCValues*/release-rc 
+							 (pointer XGCValues (XGCValues*) "release_rc_XGCValues"))
 (c-define-type XFontStruct "XFontStruct")
 (c-define-type XFontStruct* (pointer XFontStruct (XFontStruct*)))
-(c-define-type XFontStruct*/XFree (pointer XFontStruct (XFontStruct*) "XFree_XFontStruct"))
+(c-define-type XFontStruct*/XFree 
+							 (pointer XFontStruct (XFontStruct*) "XFree_XFontStruct"))
 (c-define-type XColor "XColor")
 (c-define-type XColor* (pointer XColor (XColor*)))
-(c-define-type XColor*/release-rc (pointer XColor (XColor*) "release_rc_XColor"))
+(c-define-type XColor*/release-rc 
+							 (pointer XColor (XColor*) "release_rc_XColor"))
 (c-define-type XEvent "XEvent")
 (c-define-type XEvent* (pointer XEvent (XEvent*)))
-(c-define-type XEvent*/release-rc (pointer XEvent (XEvent*) "release_rc_XEvent"))
+(c-define-type XEvent*/release-rc 
+							 (pointer XEvent (XEvent*) "release_rc_XEvent"))
 
 (c-define-type char* char-string)
 
@@ -771,10 +772,10 @@ end-of-c-declare
   ((c-lambda () long "___result = MappingNotify;")))
 
 (define x-cw-event-mask
-  (c-lambda () long "___result = CWEventMask;"))
+  ((c-lambda () long "___result = CWEventMask;")))
 
 (define x-cw-cursor
-  (c-lambda () long "___result = CWCursor;"))
+  ((c-lambda () long "___result = CWCursor;")))
 
 (define x-pending
   (c-lambda (Display*)     ;; display
@@ -800,21 +801,17 @@ end-of-c-lambda
 ))
 
 (define x-next-event
-  (c-lambda (Display*)       ;; display
-            XEvent*/release-rc
-#<<end-of-c-lambda
-XEvent ev;
-XEvent* pev;
-if (1 || XNextEvent(___arg1, &ev) == 0)
-  {
-    pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
-    *pev = ev;
-  }
-else
-  pev = 0;
-___result_voidstar = pev;
-end-of-c-lambda
-))
+	(c-lambda (Display*)       ;; display
+						XEvent*/release-rc
+						"
+						XEvent ev;
+						XEvent* pev;
+						XNextEvent(___arg1, &ev);
+						pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
+						*pev = ev;
+						___result_voidstar = pev;
+						"
+						))
 
 (define x-select-input
   (c-lambda (Display*       ;; display
@@ -1129,8 +1126,10 @@ end-of-c-lambda
 	(define (%get-default-value arg)
 		(if (null? (cddr arg))
 				(case (cadr arg)
-					((int) 0)
-					((Window Pixmap) '+x-none+))
+					((int unsigned-long unsigned-int Bool long) 0)
+					((Window Pixmap Cursor Colormap) '+x-none+)
+					(else (error (string-append "Cannot determine default type for "
+																			(object->string (cadr arg))))))
 				(caddr arg))))
 
 (define-macro (define/x-setter name args key-args type c-body)
@@ -1140,75 +1139,76 @@ end-of-c-lambda
     `(define (,name ,@(map car args) #!key ,@lambda-key-args)
        (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
          ((c-lambda ,types ,type ,c-body)
-          ,@args
+          ,@(map car args)
           ,mask-var 
           ,@(map (lambda (a) 
                    `(%provided-value ,(car a) ,(%get-default-value a)))
                  key-args))))))
 
 (define/x-setter x-configure-window 
-                 ((display Display*)
-                  (window Window))
-                 ((x int)
-                  (y int)
-                  (width int)
-                  (height int)
-                  (border-width int)
-                  (sibling Window)
-                  (stack-mode int))
-                 int
-#<<end-of-c-lambda
-  XWindowChanges wc;
-  wc.x = ___arg4;
-  wc.y = ___arg5;
-  wc.width = ___arg6;
-  wc.height = ___arg7;
-  wc.border_width = ___arg8;
-  wc.sibling = ___arg9;
-  wc.stack_mode = ___arg10;
-  ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
-end-of-c-lambda
-)
+								 ((display Display*)
+									(window Window))
+								 ((x int)
+									(y int)
+									(width int)
+									(height int)
+									(border-width int)
+									(sibling Window)
+									(stack-mode int))
+								 int
+								 "								 
+								 XWindowChanges wc;
+								 wc.x = ___arg4;
+								 wc.y = ___arg5;
+								 wc.width = ___arg6;
+								 wc.height = ___arg7;
+								 wc.border_width = ___arg8;
+								 wc.sibling = ___arg9;
+								 wc.stack_mode = ___arg10;
+								 ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
+								 ")
 
 (define/x-setter x-change-window-attributes 
-                 ((display Display*)
-                  (window Window))
-                 ((background-pixmap Pixmap) 
-                  (background-pixel unsigned-long)
-                  (border-pixmap Pixmap)
-                  (border-pixel unsigned-long)
-                  (bit-gravity int)
-                  (win-gravity int)
-                  (backing-store int)
-                  (backing-planes unsigned-long)
-                  (backing-pixel unsigned-long)
-                  (save-under Bool)
-                  (event-mask long)
-                  (do-not-propagate-mask long)
-                  (override-redirect Bool)
-                  (colormap Colormap)
-                  (cursor Cursor))
-                 int
-#<<end-of-c-lambda
-  XSetWindowAttributes wa;
-  wa.background_pixmap = ___arg4;
-  wa.background_pixel = ___arg5;
-  wa.border_pixmap = ___arg6;
-  wa.border_pixel = ___arg7;
-  wa.bit_gravity = ___arg8;
-  wa.win_gravity = ___arg9;
-  wa.backing_store = ___arg10;
-  wa.backing_planes = ___arg11;
-  wa.backing_pixel = ___arg12;
-  wa.save_under = ___arg13;
-  wa.event_mask = ___arg14;
-  wa.do_not_propagate_mask = ___arg15;
-  wa.override_redirect = ___arg16;
-  wa.colormap = ___arg17;
-  wa.cursor = ___arg18;
-  ___result = XChangeWindowAttributes(___arg1, ___arg2, ___arg3, &wa);
-end-of-c-lambda
-)
+								 ((display Display*)
+									(window Window))
+								 ((background-pixmap Pixmap) 
+									(background-pixel unsigned-long)
+									(border-pixmap Pixmap)
+									(border-pixel unsigned-long)
+									(bit-gravity int)
+									(win-gravity int)
+									(backing-store int)
+									(backing-planes unsigned-long)
+									(backing-pixel unsigned-long)
+									(save-under Bool)
+									(event-mask long)
+									(do-not-propagate-mask long)
+									(override-redirect Bool)
+									(colormap Colormap)
+									(cursor Cursor))
+								 int
+								 "
+								 XSetWindowAttributes wa;
+								 wa.background_pixmap = ___arg4;
+								 wa.background_pixel = ___arg5;
+								 wa.border_pixmap = ___arg6;
+								 wa.border_pixel = ___arg7;
+								 wa.bit_gravity = ___arg8;
+								 wa.win_gravity = ___arg9;
+								 wa.backing_store = ___arg10;
+								 wa.backing_planes = ___arg11;
+								 wa.backing_pixel = ___arg12;
+								 wa.save_under = ___arg13;
+								 wa.event_mask = ___arg14;
+								 wa.do_not_propagate_mask = ___arg15;
+								 wa.override_redirect = ___arg16;
+								 wa.colormap = ___arg17;
+								 wa.cursor = ___arg18;
+								 ___result = XChangeWindowAttributes(___arg1, 
+																										 ___arg2, 
+																										 ___arg3, 
+																										 &wa);
+								 ")
 
 (define (convert-x-event ev)
   (and ev
@@ -1302,7 +1302,7 @@ end-of-c-lambda
 
 (define (wait-x11-event x11-display)
   (let* ((x11-display-fd (x-connection-number x11-display))
-         (x11-display-port (##open-predefined 1 
+         (x11-display-port (##open-predefined 1
                                               '(X11-display) 
                                               x11-display-fd)))
     (##device-port-wait-for-input! x11-display-port)))
