@@ -16,6 +16,7 @@ run-src: uwm.scm xlib
 	make run
 
 clean: clean-obj
+	make -C xlib clean
 
 xlib:
 	make -C xlib
