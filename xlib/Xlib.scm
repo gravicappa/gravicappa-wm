@@ -24,6 +24,10 @@
   (not safe)
 )
 
+(define-macro (%eval-when-load expr)
+  (eval expr)
+	`(begin))
+
 ;;;============================================================================
 
 (c-declare "
@@ -34,8 +38,10 @@
 ;; Declare a few types so that the function prototypes use the same
 ;; type names as a C program.
 
+(c-define-type char* char-string)
 (c-define-type Time unsigned-long)
 (c-define-type XID unsigned-long)
+(c-define-type Atom unsigned-long)
 
 (c-define-type Window XID)
 (c-define-type Drawable XID)
@@ -67,127 +73,81 @@ ___SCMOBJ XFree_GC( void* ptr )
   return ___FIX(___NO_ERR);
 }
 
-___SCMOBJ XFree_Visual( void* ptr )
-{ Visual* p = ptr;
-#ifdef debug_free
-  printf( "XFree_Visual(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  XFree( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ XFree_Display( void* ptr )
-{ Display* p = ptr;
-#ifdef debug_free
-  printf( "XFree_Display(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  XFree( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ XFree_Screen( void* ptr )
-{ Screen* p = ptr;
-#ifdef debug_free
-  printf( "XFree_Screen(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  XFree( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ release_rc_XGCValues( void* ptr )
-{ XGCValues* p = ptr;
-#ifdef debug_free
-  printf( "release_rc_XGCValues(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  ___EXT(___release_rc)( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ XFree_XFontStruct( void* ptr )
-{ XFontStruct* p = ptr;
-#ifdef debug_free
-  printf( "XFree_XFontStruct(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  XFree( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ release_rc_XColor( void* ptr )
-{ XColor* p = ptr;
-#ifdef debug_free
-  printf( "release_rc_XColor(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  ___EXT(___release_rc)( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
-___SCMOBJ release_rc_XEvent( void* ptr )
-{ XEvent* p = ptr;
-#ifdef debug_free
-  printf( "release_rc_XEvent(%p)\n", p );
-  fflush( stdout );
-#endif
-#ifdef really_free
-  ___EXT(___release_rc)( p );
-#endif
-  return ___FIX(___NO_ERR);
-}
-
 end-of-c-declare
 )
+
+(%eval-when-load
+	(define (%string-replace new old str)
+		(list->string (map (lambda (c)
+												 (if (char=? c old)
+														 new
+														 c))
+											 (string->list str)))))
+
+(define-macro (%c-define-x-object name type)
+  (let* ((sym (string->symbol name))
+				 (ptr (string->symbol (string-append name "*")))
+				 (ptr/free (string->symbol (string-append name "*/" type)))
+				 (releaser (string-append type "_" name))
+				 (c-releaser (%string-replace #\_ #\- releaser)))
+		`(begin
+			 (c-declare
+				 ,(string-append
+						"___SCMOBJ " c-releaser "(void *ptr)\n"
+						"{\n"
+						name " *p = ptr;\n"
+						"#ifdef debug_free\n"
+						"printf(\"" c-releaser "(%p)\\n\", p);\n"
+						"fflush(stdout);\n"
+						"#endif\n"
+						"#ifdef really_free\n"
+						(cond
+							((string=? type "release-rc")
+							 "___EXT(___release_rc)(p);\n")
+							((string=? type "XFree")
+							 "XFree(p);\n"))
+						"#endif\n"
+						"return ___FIX(___NO_ERR);\n"
+						"}\n"))
+			 (c-define-type ,sym ,name)
+			 (c-define-type ,ptr (pointer ,sym (,ptr)))
+			 (c-define-type ,ptr/free (pointer ,sym (,ptr) ,c-releaser)))))
 
 (c-define-type Bool int)
 (c-define-type Status int)
 (c-define-type GC (pointer (struct "_XGC") (GC)))
 (c-define-type GC/XFree (pointer (struct "_XGC") (GC) "XFree_GC"))
-(c-define-type Visual "Visual")
-(c-define-type Visual* (pointer Visual (Visual*)))
-(c-define-type Visual*/XFree (pointer Visual (Visual*) "XFree_Visual"))
-(c-define-type Display "Display")
-(c-define-type Display* (pointer Display (Display*)))
-(c-define-type Display*/XFree (pointer Display (Display*) "XFree_Display"))
-(c-define-type Screen "Screen")
-(c-define-type Screen* (pointer Screen (Screen*)))
-(c-define-type Screen*/XFree (pointer Screen (Screen*) "XFree_Screen"))
-(c-define-type XGCValues "XGCValues")
-(c-define-type XGCValues* (pointer XGCValues (XGCValues*)))
-(c-define-type XGCValues*/release-rc 
-							 (pointer XGCValues (XGCValues*) "release_rc_XGCValues"))
-(c-define-type XFontStruct "XFontStruct")
-(c-define-type XFontStruct* (pointer XFontStruct (XFontStruct*)))
-(c-define-type XFontStruct*/XFree 
-							 (pointer XFontStruct (XFontStruct*) "XFree_XFontStruct"))
-(c-define-type XColor "XColor")
-(c-define-type XColor* (pointer XColor (XColor*)))
-(c-define-type XColor*/release-rc 
-							 (pointer XColor (XColor*) "release_rc_XColor"))
-(c-define-type XEvent "XEvent")
-(c-define-type XEvent* (pointer XEvent (XEvent*)))
-(c-define-type XEvent*/release-rc 
-							 (pointer XEvent (XEvent*) "release_rc_XEvent"))
+;(c-define-type Visual "Visual")
+;(c-define-type Visual* (pointer Visual (Visual*)))
+;(c-define-type Visual*/XFree (pointer Visual (Visual*) "XFree_Visual"))
+;(c-define-type Display "Display")
+;(c-define-type Display* (pointer Display (Display*)))
+;(c-define-type Display*/XFree (pointer Display (Display*) "XFree_Display"))
+;(c-define-type Screen "Screen")
+;(c-define-type Screen* (pointer Screen (Screen*)))
+;(c-define-type Screen*/XFree (pointer Screen (Screen*) "XFree_Screen"))
+;(c-define-type XGCValues "XGCValues")
+;(c-define-type XGCValues* (pointer XGCValues (XGCValues*)))
+;(c-define-type XGCValues*/release-rc
+;							 (pointer XGCValues (XGCValues*) "release_rc_XGCValues"))
+;(c-define-type XFontStruct "XFontStruct")
+;(c-define-type XFontStruct* (pointer XFontStruct (XFontStruct*)))
+;(c-define-type XFontStruct*/XFree
+;							 (pointer XFontStruct (XFontStruct*) "XFree_XFontStruct"))
+;(c-define-type XColor "XColor")
+;(c-define-type XColor* (pointer XColor (XColor*)))
+;(c-define-type XColor*/release-rc
+;							 (pointer XColor (XColor*) "release_rc_XColor"))
 
-(c-define-type char* char-string)
+(%c-define-x-object "XGCValues" "release-rc")
+(%c-define-x-object "XEvent" "release-rc")
+(%c-define-x-object "XColor" "release-rc")
+(%c-define-x-object "Visual" "XFree")
+(%c-define-x-object "Screen" "XFree")
+(%c-define-x-object "XFontStruct" "XFree")
+(%c-define-x-object "Display" "XFree")
 
-;; Function prototypes for a minimal subset of Xlib functions.  The
-;; functions have the same name in Scheme and C.
+(##include "Xlib-events#.scm")
 
 (define x-open-display
   (c-lambda (char*)        ;; display_name
@@ -316,7 +276,7 @@ end-of-c-declare
             "XFlush"))
 
 (define x-sync
-  (c-lambda (Display* 
+  (c-lambda (Display*
              bool)
             int
             "XSync"))
@@ -1071,7 +1031,7 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(define x-set-window-border-width 
+(define x-set-window-border-width
   (c-lambda (Display* Window unsigned-int)
             int
             "XSetWindowBorderWidth"))
@@ -1096,16 +1056,12 @@ end-of-c-lambda
             int
             "XResizeWindow"))
 
-(define-macro (%eval-when-load expr)
-  (eval expr)
-	`(begin))
-
 (define (%provided-mask v shift)
-  (if (eq? v '()) 
-      0 
+  (if (eq? v '())
+      0
       (arithmetic-shift 1 shift)))
 
-(define (%provided-value v default) 
+(define (%provided-value v default)
   (if (eq? v '())
       default
       v))
@@ -1117,8 +1073,8 @@ end-of-c-lambda
 							 (acc '()))
 			(if (pair? args)
 					(let ((arg (car args)))
-						(loop (cdr args) 
-									(+ idx 1) 
+						(loop (cdr args)
+									(+ idx 1)
 									(cons `(%provided-mask ,(car arg) ,idx) acc)))
 					acc))))
 
@@ -1140,12 +1096,12 @@ end-of-c-lambda
        (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
          ((c-lambda ,types ,type ,c-body)
           ,@(map car args)
-          ,mask-var 
-          ,@(map (lambda (a) 
+          ,mask-var
+          ,@(map (lambda (a)
                    `(%provided-value ,(car a) ,(%get-default-value a)))
                  key-args))))))
 
-(%define/x-setter x-configure-window 
+(%define/x-setter x-configure-window
 									((display Display*)
 									 (window Window))
 									((x int)
@@ -1156,7 +1112,7 @@ end-of-c-lambda
 									 (sibling Window)
 									 (stack-mode int))
 									int
-									"								 
+									"								
 									XWindowChanges wc;
 									wc.x = ___arg4;
 									wc.y = ___arg5;
@@ -1168,10 +1124,10 @@ end-of-c-lambda
 									___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
 									")
 
-(%define/x-setter x-change-window-attributes 
+(%define/x-setter x-change-window-attributes
 									((display Display*)
 									 (window Window))
-									((background-pixmap Pixmap) 
+									((background-pixmap Pixmap)
 									 (background-pixel unsigned-long)
 									 (border-pixmap Pixmap)
 									 (border-pixel unsigned-long)
@@ -1204,9 +1160,9 @@ end-of-c-lambda
 									wa.override_redirect = ___arg16;
 									wa.colormap = ___arg17;
 									wa.cursor = ___arg18;
-									___result = XChangeWindowAttributes(___arg1, 
-																											 ___arg2, 
-																											 ___arg3, 
+									___result = XChangeWindowAttributes(___arg1,
+																											 ___arg2,
+																											 ___arg3,
 																											 &wa);
 									")
 
@@ -1303,7 +1259,7 @@ end-of-c-lambda
 (define (wait-x11-event x11-display)
   (let* ((x11-display-fd (x-connection-number x11-display))
          (x11-display-port (##open-predefined 1
-                                              '(X11-display) 
+                                              '(X11-display)
                                               x11-display-fd)))
     (##device-port-wait-for-input! x11-display-port)))
 ;;;============================================================================

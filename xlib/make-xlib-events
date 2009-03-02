@@ -1,0 +1,117 @@
+#!/bin/sh
+
+tags=`mktemp ./tagsXXXX`
+trap "rm \"$tags\"; exit" 0 2 3 15
+
+common_fields_re='type|serial|send_event|display|window'
+tags='tags'
+ctags -f "$tags" --sort=no '/usr/include/X11/Xlib.h'
+
+events=`cut -f1 < "$tags" | grep -E '^X[A-Za-z]*Event' | grep -v XAnyEvent`
+
+get_struct_name() {
+	local name=`grep -E "^$1" < "$tags" | cut -d'	' -f5 | cut -d: -f 3`
+	case $name in
+		__anon*) echo $name;;
+		*) echo $1;;
+	esac
+}
+
+get_struct_fields_all() {
+	sed -n "/m	struct:$1$/p" < "$tags" | cut -f1 
+}
+
+get_struct_fields() {
+	get_struct_fields_all $1 | grep -vE "$common_fields_re"
+}
+
+get_field_type() {
+	local ev=$1
+	local field=$2
+	sed -n "/^$field	.*m	struct:$ev/p" < "$tags" \
+	| sed -n "/\/\^.*/ s/.*\/^\s\<\([A-Za-z_* ]\+\)\(\<[A-Za-z_]\+\(, \)*\)\+;.*/\1/p" \
+	| sed "s/ \*/*/;s/ $//;s/ /-/g"
+}
+
+lisp_name() {
+	echo $1 | sed 's/[A-Z]/-\l&/g;s/_/-/g' | sed 's/^-//' | sed 's/-\+-/-/g' 
+}
+
+get_event_names() {
+	sed -n "/m	union:_XEvent/p" < "$tags" \
+	| sed -n 's/.*\(\<X[A-Za-z]*\>\) \([a-z]*\);.*/\1:\2/p'
+}
+
+get_event_field() {
+	get_event_names | sed -n "/\<$1\>/p" | cut -d: -f2
+}
+
+make_event_accessor() {
+	local ev="$1"
+	local ev_field="$2"
+	local field="$3"
+	local type=$(get_field_type `get_struct_name $ev` $field)
+
+	# workarounds
+	if [ "$ev" = "XColormapEvent" ] && [ "$field" = "c_new" ] ; then
+		field='new'
+  else
+		case "$type" in 
+			Display*) return;;
+		esac
+	fi
+
+	cat << ! | expand -t2 
+(define `lisp_name $ev-$field`
+  (c-lambda (XEvent*) 
+	  $type 
+	  "___result = ___arg1->$ev_field.$field;"))
+
+!
+}
+
+make_event_accessors() {
+	ev="$1"
+	field="`get_event_field $ev`"
+	name=`get_struct_name $ev`
+	for f in `get_struct_fields $name`; do
+		make_event_accessor $ev $field $f
+	done
+}
+
+make_any_event_accessors() {
+	ev=XAnyEvent
+	field="`get_event_field $ev`"
+	for f in $(get_struct_fields_all `get_struct_name XAnyEvent`) ; do
+		make_event_accessor $ev $field $f
+	done
+}
+
+#get_field_type `get_struct_name XAnyEvent` serial
+#get_field_type `get_struct_name XAnyEvent` display
+#get_field_type `get_struct_name XKeyEvent` x
+#exit
+
+cat << !
+;; XAnyEvent slots accessors
+
+`make_any_event_accessors`
+
+!
+
+for ev in $events ; do
+	#echo `lisp_name $ev` struct: `get_struct_name $ev`
+	#for f in $(get_struct_fields `get_struct_name $ev`); do
+	#	echo " ." `lisp_name $f`
+	#done
+	if [ -n "$(get_struct_fields `get_struct_name $ev`)" ] ; then
+		cat << !
+;; $ev slots accessors
+
+`make_event_accessors "$ev"`
+
+!
+	fi
+done
+
+rm "$tags"
