@@ -29,7 +29,7 @@
            (handle-x11-event xdisplay (x-next-event xdisplay))
            (loop (- num 1))))))
 
-(add-to-list *internal-loop-hook* (lambda (dpy) (x11-event-hook dpy)))
+(add-to-list *internal-loop-hook* 'x11-event-hook)
 
 (define (main-loop xdisplay)
   (run-hook *internal-loop-hook* xdisplay)

@@ -2,10 +2,13 @@
 (define *x11-event-dispatcher* (make-table))
 
 (define (run-hook hooks . args)
-  (let loop ((hooks hooks))
-    (cond ((pair? hooks)
-           (apply (car hooks) args)
-           (loop (cdr hooks))))))
+	(let loop ((hooks hooks))
+		(cond ((pair? hooks)
+					 (let ((fn (car hooks)))
+						 (apply (cond ((procedure? fn) fn)
+													((symbol? fn) (eval fn)))
+										args))
+					 (loop (cdr hooks))))))
 
 (define (find item <list>)
   (if (pair? <list>)

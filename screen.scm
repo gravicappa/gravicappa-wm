@@ -33,4 +33,4 @@
 								(loop (+ 1 i) (cons (init-single-screen display i) screens))
 								(reverse screens))))))
 
-(add-to-list *internal-startup-hook* (lambda (d) (init-screens d)))
+(add-to-list *internal-startup-hook* 'init-screens)
