@@ -5,7 +5,7 @@ GSCFLAGS= -ld-options "${LDFLAGS}"
 
 .PHONY: all clean clean-obj run xlib
 
-all: clean-obj ${DEST} Xlib.o1 
+all: clean-obj Xlib.o1 ${DEST} 
 
 run: all
 	gsi Xlib -e '(load "uwm") (main)'
@@ -15,6 +15,7 @@ run-src: uwm.scm Xlib.o1
 	gsi Xlib -e '(load "uwm.scm") (main "-d" "localhost:2")'
 
 clean: clean-obj
+	-rm 'Xlib#.scm'
 
 xlib: Xlib.o1
 
@@ -23,6 +24,9 @@ clean-obj:
 
 %.o1 : %.scm
 	gambit-gsc ${GSCFLAGS} $<
+
+Xlib\#.scm: Xlib.scm
+	./make-gambit-include 'Xlib#' < Xlib.scm > Xlib\#.scm
 
 Xlib.o1: Xlib.scm Xlib\#.scm
 	-rm Xlib.o* 2>/dev/null

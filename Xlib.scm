@@ -385,7 +385,7 @@ end-of-c-declare
             Status
             "XAllocColor"))
 
-(define (make--x-color-box)
+(define (make-x-color-box)
   ((c-lambda ()
              XColor*/release-rc
              "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XColor));")))
@@ -471,6 +471,9 @@ end-of-c-declare
              Font)          ;; font_ID
             void
             "___arg1->font = ___arg2;"))
+
+(define +x-none+
+  ((c-lambda () unsigned-long "___result = None;")))
 
 (define x-gc-function
   ((c-lambda () unsigned-long "___result = GCFunction;")))
@@ -589,9 +592,6 @@ end-of-c-declare
   (c-lambda (XFontStruct*)  ;; font_struct
             int
             "___result = ___arg1->descent;"))
-
-(define +x-none+
-  ((c-lambda () unsigned-long "___result = None;")))
 
 (define no-event-mask
   ((c-lambda () long "___result = NoEventMask;")))
@@ -775,10 +775,6 @@ end-of-c-declare
 
 (define x-cw-cursor
   (c-lambda () long "___result = CWCursor;"))
-
-(define x-change-window-attributes
-  (c-lambda (Display* Window unsigned-long )
-            "XChangeWindowAttributes"))
 
 (define x-pending
   (c-lambda (Display*)     ;; display
@@ -1103,6 +1099,10 @@ end-of-c-lambda
             int
             "XResizeWindow"))
 
+(define-macro (eval-when-load expr)
+  (eval expr)
+	`(begin))
+
 (define (%provided-mask v shift)
   (if (eq? v '()) 
       0 
@@ -1113,32 +1113,34 @@ end-of-c-lambda
       default
       v))
 
-(define (%make-provided-mask args)
-  (let loop ((args args)
-             (idx 0)
-             (acc '()))
-    (if (pair? args)
-        (let ((arg (car args)))
-          (loop (cdr args) 
-                (+ idx 1) 
-                (cons `(%provided-mask ,(car arg) ,idx) acc)))
-        acc)))
+(eval-when-load
+	(define (%make-provided-mask args)
+		(let loop ((args args)
+							 (idx 0)
+							 (acc '()))
+			(if (pair? args)
+					(let ((arg (car args)))
+						(loop (cdr args) 
+									(+ idx 1) 
+									(cons `(%provided-mask ,(car arg) ,idx) acc)))
+					acc))))
 
-(define (%get-default-value arg)
-  (if (null? (cddr arg))
-      (case (cadr arg)
-        ((int) 0)
-        ((Window Pixmap) +x-none+))
-      (caddr arg)))
+(eval-when-load
+	(define (%get-default-value arg)
+		(if (null? (cddr arg))
+				(case (cadr arg)
+					((int) 0)
+					((Window Pixmap) '+x-none+))
+				(caddr arg))))
 
 (define-macro (define/x-setter name args key-args type c-body)
-  (let ((types (map cadr key-args))
-        (lambda-key-args (map (lambda (a) (list (car args '()))) key-args))
+  (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
+        (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
         (mask-var (gensym)))
-    `(define (,name args #!key ,@lambda-key-args)
+    `(define (,name ,@(map car args) #!key ,@lambda-key-args)
        (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
          ((c-lambda ,types ,type ,c-body)
-          ,@args 
+          ,@args
           ,mask-var 
           ,@(map (lambda (a) 
                    `(%provided-value ,(car a) ,(%get-default-value a)))
@@ -1157,15 +1159,16 @@ end-of-c-lambda
                  int
 #<<end-of-c-lambda
   XWindowChanges wc;
-  wc.x = __arg4;
-  wc.y = __arg5;
-  wc.width = __arg6;
-  wc.height = __arg7;
-  wc.border_width = __arg8;
-  wc.sibling = __arg9;
-  wc.stack_mode = __arg10;
-  ___result = XConfigureWindow(__arg1, __arg2, __arg3, &wc);
-end-of-c-lambda)
+  wc.x = ___arg4;
+  wc.y = ___arg5;
+  wc.width = ___arg6;
+  wc.height = ___arg7;
+  wc.border_width = ___arg8;
+  wc.sibling = ___arg9;
+  wc.stack_mode = ___arg10;
+  ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
+end-of-c-lambda
+)
 
 (define/x-setter x-change-window-attributes 
                  ((display Display*)
@@ -1188,23 +1191,24 @@ end-of-c-lambda)
                  int
 #<<end-of-c-lambda
   XSetWindowAttributes wa;
-  wa.background_pixmap = __arg4;
-  wa.background_pixel = __arg5;
-  wa.border_pixmap = __arg6;
-  wa.border_pixel = __arg7;
-  wa.bit_gravity = __arg8;
-  wa.win_gravity = __arg9;
-  wa.backing_store = __arg10;
-  wa.backing_planes = __arg11;
-  wa.backing_pixel = __arg12;
-  wa.save_under = __arg13;
-  wa.event_mask = __arg14;
-  wa.do_not_propagate_mask = __arg15;
-  wa.override_redirect = __arg16;
-  wa.colormap = __arg17;
-  wa.cursor = __arg18;
-  ___result = XChangeWindowAttributes(__arg1, __arg2, __arg3, &wa);
-end-of-c-lambda)
+  wa.background_pixmap = ___arg4;
+  wa.background_pixel = ___arg5;
+  wa.border_pixmap = ___arg6;
+  wa.border_pixel = ___arg7;
+  wa.bit_gravity = ___arg8;
+  wa.win_gravity = ___arg9;
+  wa.backing_store = ___arg10;
+  wa.backing_planes = ___arg11;
+  wa.backing_pixel = ___arg12;
+  wa.save_under = ___arg13;
+  wa.event_mask = ___arg14;
+  wa.do_not_propagate_mask = ___arg15;
+  wa.override_redirect = ___arg16;
+  wa.colormap = ___arg17;
+  wa.cursor = ___arg18;
+  ___result = XChangeWindowAttributes(___arg1, ___arg2, ___arg3, &wa);
+end-of-c-lambda
+)
 
 (define (convert-x-event ev)
   (and ev
