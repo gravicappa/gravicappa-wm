@@ -130,6 +130,8 @@ x-load-font
 x-load-query-font
 x-map-window
 x-open-display
+x-display-width
+x-display-heigth
 x-parse-color
 x-query-font
 x-root-window
@@ -138,6 +140,11 @@ x-screen-of-display
 x-select-input
 x-text-width
 x-white-pixel
+
+x-configure-window
+x-move-resize-window
+x-move-window
+x-resize-window
 
 x-any-event-type
 x-any-event-serial

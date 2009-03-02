@@ -1,5 +1,6 @@
 (include "Xlib#.scm")
 (include "utils.scm")
+(include "screen.scm")
 (include "events.scm")
 
 (define-hook *internal-startup-hook*)
