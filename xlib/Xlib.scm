@@ -1096,7 +1096,7 @@ end-of-c-lambda
             int
             "XResizeWindow"))
 
-(define-macro (eval-when-load expr)
+(define-macro (%eval-when-load expr)
   (eval expr)
 	`(begin))
 
@@ -1110,7 +1110,7 @@ end-of-c-lambda
       default
       v))
 
-(eval-when-load
+(%eval-when-load
 	(define (%make-provided-mask args)
 		(let loop ((args args)
 							 (idx 0)
@@ -1122,7 +1122,7 @@ end-of-c-lambda
 									(cons `(%provided-mask ,(car arg) ,idx) acc)))
 					acc))))
 
-(eval-when-load
+(%eval-when-load
 	(define (%get-default-value arg)
 		(if (null? (cddr arg))
 				(case (cadr arg)
@@ -1132,7 +1132,7 @@ end-of-c-lambda
 																			(object->string (cadr arg))))))
 				(caddr arg))))
 
-(define-macro (define/x-setter name args key-args type c-body)
+(define-macro (%define/x-setter name args key-args type c-body)
   (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
         (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
         (mask-var (gensym)))
@@ -1145,70 +1145,70 @@ end-of-c-lambda
                    `(%provided-value ,(car a) ,(%get-default-value a)))
                  key-args))))))
 
-(define/x-setter x-configure-window 
-								 ((display Display*)
-									(window Window))
-								 ((x int)
-									(y int)
-									(width int)
-									(height int)
-									(border-width int)
-									(sibling Window)
-									(stack-mode int))
-								 int
-								 "								 
-								 XWindowChanges wc;
-								 wc.x = ___arg4;
-								 wc.y = ___arg5;
-								 wc.width = ___arg6;
-								 wc.height = ___arg7;
-								 wc.border_width = ___arg8;
-								 wc.sibling = ___arg9;
-								 wc.stack_mode = ___arg10;
-								 ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
-								 ")
+(%define/x-setter x-configure-window 
+									((display Display*)
+									 (window Window))
+									((x int)
+									 (y int)
+									 (width int)
+									 (height int)
+									 (border-width int)
+									 (sibling Window)
+									 (stack-mode int))
+									int
+									"								 
+									XWindowChanges wc;
+									wc.x = ___arg4;
+									wc.y = ___arg5;
+									wc.width = ___arg6;
+									wc.height = ___arg7;
+									wc.border_width = ___arg8;
+									wc.sibling = ___arg9;
+									wc.stack_mode = ___arg10;
+									___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
+									")
 
-(define/x-setter x-change-window-attributes 
-								 ((display Display*)
-									(window Window))
-								 ((background-pixmap Pixmap) 
-									(background-pixel unsigned-long)
-									(border-pixmap Pixmap)
-									(border-pixel unsigned-long)
-									(bit-gravity int)
-									(win-gravity int)
-									(backing-store int)
-									(backing-planes unsigned-long)
-									(backing-pixel unsigned-long)
-									(save-under Bool)
-									(event-mask long)
-									(do-not-propagate-mask long)
-									(override-redirect Bool)
-									(colormap Colormap)
-									(cursor Cursor))
-								 int
-								 "
-								 XSetWindowAttributes wa;
-								 wa.background_pixmap = ___arg4;
-								 wa.background_pixel = ___arg5;
-								 wa.border_pixmap = ___arg6;
-								 wa.border_pixel = ___arg7;
-								 wa.bit_gravity = ___arg8;
-								 wa.win_gravity = ___arg9;
-								 wa.backing_store = ___arg10;
-								 wa.backing_planes = ___arg11;
-								 wa.backing_pixel = ___arg12;
-								 wa.save_under = ___arg13;
-								 wa.event_mask = ___arg14;
-								 wa.do_not_propagate_mask = ___arg15;
-								 wa.override_redirect = ___arg16;
-								 wa.colormap = ___arg17;
-								 wa.cursor = ___arg18;
-								 ___result = XChangeWindowAttributes(___arg1, 
-																										 ___arg2, 
-																										 ___arg3, 
-																										 &wa);
-								 ")
+(%define/x-setter x-change-window-attributes 
+									((display Display*)
+									 (window Window))
+									((background-pixmap Pixmap) 
+									 (background-pixel unsigned-long)
+									 (border-pixmap Pixmap)
+									 (border-pixel unsigned-long)
+									 (bit-gravity int)
+									 (win-gravity int)
+									 (backing-store int)
+									 (backing-planes unsigned-long)
+									 (backing-pixel unsigned-long)
+									 (save-under Bool)
+									 (event-mask long)
+									 (do-not-propagate-mask long)
+									 (override-redirect Bool)
+									 (colormap Colormap)
+									 (cursor Cursor))
+									int
+									"
+									XSetWindowAttributes wa;
+									wa.background_pixmap = ___arg4;
+									wa.background_pixel = ___arg5;
+									wa.border_pixmap = ___arg6;
+									wa.border_pixel = ___arg7;
+									wa.bit_gravity = ___arg8;
+									wa.win_gravity = ___arg9;
+									wa.backing_store = ___arg10;
+									wa.backing_planes = ___arg11;
+									wa.backing_pixel = ___arg12;
+									wa.save_under = ___arg13;
+									wa.event_mask = ___arg14;
+									wa.do_not_propagate_mask = ___arg15;
+									wa.override_redirect = ___arg16;
+									wa.colormap = ___arg17;
+									wa.cursor = ___arg18;
+									___result = XChangeWindowAttributes(___arg1, 
+																											 ___arg2, 
+																											 ___arg3, 
+																											 &wa);
+									")
 
 (define (convert-x-event ev)
   (and ev
