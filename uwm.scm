@@ -4,6 +4,7 @@
 (define-hook *internal-startup-hook*)
 (define-hook *internal-loop-hook*)
 (define-hook *shutdown-hook*)
+(define-hook *event-hook*)
 
 (include "screen.scm")
 (include "events.scm")
