@@ -11,12 +11,19 @@ clean: clean-obj
 clean-obj:
 	-rm *.o* 2> /dev/null
 
-events:
+events: Xlib-events\#.scm
+accessors: Xlib-accessors\#.scm
+
+Xlib-events\#.scm: /usr/include/X11/Xlib.h
 	./make-xlib-events > 'Xlib-events#.scm'
+	
+Xlib-accessors\#.scm:	x-struct
+	./make-accessors < $< > $@
 
-Xlib\#.scm: Xlib.scm Xlib-events\#.scm
-	./make-gambit-include 'Xlib#' < $< > $@
+Xlib\#.scm: Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm
+	cat Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm \
+		| ./make-gambit-include 'Xlib#' > $@
 
-Xlib.o1: Xlib.scm Xlib-events\#.scm Xlib\#.scm
+Xlib.o1: Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm Xlib\#.scm
 	-rm Xlib.o* 2>/dev/null
 	gambit-gsc -ld-options "-lX11" Xlib.scm

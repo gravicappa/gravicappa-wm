@@ -21,8 +21,7 @@
   (standard-bindings)
   (extended-bindings)
   (block)
-  (not safe)
-)
+  (not safe))
 
 (define-macro (%eval-when-load expr)
   (eval expr)
@@ -42,6 +41,9 @@
 (c-define-type Time unsigned-long)
 (c-define-type XID unsigned-long)
 (c-define-type Atom unsigned-long)
+
+(c-define-type Bool int)
+(c-define-type Status int)
 
 (c-define-type Window XID)
 (c-define-type Drawable XID)
@@ -113,31 +115,11 @@ end-of-c-declare
 			 (c-define-type ,ptr (pointer ,sym (,ptr)))
 			 (c-define-type ,ptr/free (pointer ,sym (,ptr) ,c-releaser)))))
 
-(c-define-type Bool int)
-(c-define-type Status int)
+(define-macro (%c-define-const name type c-name)
+  `((c-lambda () ,type ,(string-append "___result = " c-name ";"))))
+
 (c-define-type GC (pointer (struct "_XGC") (GC)))
 (c-define-type GC/XFree (pointer (struct "_XGC") (GC) "XFree_GC"))
-;(c-define-type Visual "Visual")
-;(c-define-type Visual* (pointer Visual (Visual*)))
-;(c-define-type Visual*/XFree (pointer Visual (Visual*) "XFree_Visual"))
-;(c-define-type Display "Display")
-;(c-define-type Display* (pointer Display (Display*)))
-;(c-define-type Display*/XFree (pointer Display (Display*) "XFree_Display"))
-;(c-define-type Screen "Screen")
-;(c-define-type Screen* (pointer Screen (Screen*)))
-;(c-define-type Screen*/XFree (pointer Screen (Screen*) "XFree_Screen"))
-;(c-define-type XGCValues "XGCValues")
-;(c-define-type XGCValues* (pointer XGCValues (XGCValues*)))
-;(c-define-type XGCValues*/release-rc
-;							 (pointer XGCValues (XGCValues*) "release_rc_XGCValues"))
-;(c-define-type XFontStruct "XFontStruct")
-;(c-define-type XFontStruct* (pointer XFontStruct (XFontStruct*)))
-;(c-define-type XFontStruct*/XFree
-;							 (pointer XFontStruct (XFontStruct*) "XFree_XFontStruct"))
-;(c-define-type XColor "XColor")
-;(c-define-type XColor* (pointer XColor (XColor*)))
-;(c-define-type XColor*/release-rc
-;							 (pointer XColor (XColor*) "release_rc_XColor"))
 
 (%c-define-x-object "XGCValues" "release-rc")
 (%c-define-x-object "XEvent" "release-rc")
@@ -146,8 +128,10 @@ end-of-c-declare
 (%c-define-x-object "Screen" "XFree")
 (%c-define-x-object "XFontStruct" "XFree")
 (%c-define-x-object "Display" "XFree")
+(%c-define-x-object "XWindowAttributes" "release-rc")
 
 (##include "Xlib-events#.scm")
+(##include "Xlib-accessors#.scm")
 
 (define x-open-display
   (c-lambda (char*)        ;; display_name
@@ -433,77 +417,30 @@ end-of-c-declare
             void
             "___arg1->font = ___arg2;"))
 
-(define +x-none+
-  ((c-lambda () unsigned-long "___result = None;")))
-
-(define x-gc-function
-  ((c-lambda () unsigned-long "___result = GCFunction;")))
-
-(define x-gc-plane-mask
-  ((c-lambda () unsigned-long "___result = GCPlaneMask;")))
-
-(define x-gc-foreground
-  ((c-lambda () unsigned-long "___result = GCForeground;")))
-
-(define x-gc-background
-  ((c-lambda () unsigned-long "___result = GCBackground;")))
-
-(define x-gc-line-width
-  ((c-lambda () unsigned-long "___result = GCLineWidth;")))
-
-(define x-gc-line-style
-  ((c-lambda () unsigned-long "___result = GCLineStyle;")))
-
-(define x-gc-cap-style
-  ((c-lambda () unsigned-long "___result = GCCapStyle;")))
-
-(define x-gc-join-style
-  ((c-lambda () unsigned-long "___result = GCJoinStyle;")))
-
-(define x-gc-fill-style
-  ((c-lambda () unsigned-long "___result = GCFillStyle;")))
-
-(define x-gc-fill-rule
-  ((c-lambda () unsigned-long "___result = GCFillRule;")))
-
-(define x-gc-tile
-  ((c-lambda () unsigned-long "___result = GCTile;")))
-
-(define x-gc-stipple
-  ((c-lambda () unsigned-long "___result = GCStipple;")))
-
-(define x-gc-tile-stip-x-origin
-  ((c-lambda () unsigned-long "___result = GCTileStipXOrigin;")))
-
-(define x-gc-tile-stip-y-origin
-  ((c-lambda () unsigned-long "___result = GCTileStipYOrigin;")))
-
-(define x-gc-font
-  ((c-lambda () unsigned-long "___result = GCFont;")))
-
-(define x-gc-subwindow-mode
-  ((c-lambda () unsigned-long "___result = GCSubwindowMode;")))
-
-(define x-gc-graphics-exposures
-  ((c-lambda () unsigned-long "___result = GCGraphicsExposures;")))
-
-(define x-gc-clip-x-origin
-  ((c-lambda () unsigned-long "___result = GCClipXOrigin;")))
-
-(define x-gc-clip-y-origin
-  ((c-lambda () unsigned-long "___result = GCClipYOrigin;")))
-
-(define x-gc-clip-mask
-  ((c-lambda () unsigned-long "___result = GCClipMask;")))
-
-(define x-gc-dash-offset
-  ((c-lambda () unsigned-long "___result = GCDashOffset;")))
-
-(define x-gc-dash-list
-  ((c-lambda () unsigned-long "___result = GCDashList;")))
-
-(define x-gc-arc-mode
-  ((c-lambda () unsigned-long "___result = GCArcMode;")))
+(%c-define-const +x-none+ unsigned-long "None")
+(%c-define-const x-gc-function unsigned-long "GCFunction")
+(%c-define-const x-gc-plane-mask unsigned-long "GCPlaneMask")
+(%c-define-const x-gc-foreground unsigned-long "GCForeground")
+(%c-define-const x-gc-background unsigned-long "GCBackground")
+(%c-define-const x-gc-line-width unsigned-long "GCLineWidth")
+(%c-define-const x-gc-line-style unsigned-long "GCLineStyle")
+(%c-define-const x-gc-cap-style unsigned-long "GCCapStyle")
+(%c-define-const x-gc-join-style unsigned-long "GCJoinStyle")
+(%c-define-const x-gc-fill-style unsigned-long "GCFillStyle")
+(%c-define-const x-gc-fill-rule unsigned-long "GCFillRule")
+(%c-define-const x-gc-tile unsigned-long "GCTile")
+(%c-define-const x-gc-stipple unsigned-long "GCStipple")
+(%c-define-const x-gc-tile-stip-x-origin unsigned-long "GCTileStipXOrigin")
+(%c-define-const x-gc-tile-stip-y-origin unsigned-long "GCTileStipYOrigin")
+(%c-define-const x-gc-font unsigned-long "GCFont")
+(%c-define-const x-gc-subwindow-mode unsigned-long "GCSubwindowMode")
+(%c-define-const x-gc-graphics-exposures unsigned-long "GCGraphicsExposures")
+(%c-define-const x-gc-clip-x-origin unsigned-long "GCClipXOrigin")
+(%c-define-const x-gc-clip-y-origin unsigned-long "GCClipYOrigin")
+(%c-define-const x-gc-clip-mask unsigned-long "GCClipMask")
+(%c-define-const x-gc-dash-offset unsigned-long "GCDashOffset")
+(%c-define-const x-gc-dash-list unsigned-long "GCDashList")
+(%c-define-const x-gc-arc-mode unsigned-long "GCArcMode")
 
 (define x-change-gc
   (c-lambda (Display*       ;; display
@@ -554,188 +491,67 @@ end-of-c-declare
             int
             "___result = ___arg1->descent;"))
 
-(define no-event-mask
-  ((c-lambda () long "___result = NoEventMask;")))
-
-(define key-press-mask
-  ((c-lambda () long "___result = KeyPressMask;")))
-
-(define key-release-mask
-  ((c-lambda () long "___result = KeyReleaseMask;")))
-
-(define button-press-mask
-  ((c-lambda () long "___result = ButtonPressMask;")))
-
-(define button-release-mask
-  ((c-lambda () long "___result = ButtonReleaseMask;")))
-
-(define enter-window-mask
-  ((c-lambda () long "___result = EnterWindowMask;")))
-
-(define leave-window-mask
-  ((c-lambda () long "___result = LeaveWindowMask;")))
-
-(define pointer-motion-mask
-  ((c-lambda () long "___result = PointerMotionMask;")))
-
-(define pointer-motion-hint-mask
-  ((c-lambda () long "___result = PointerMotionHintMask;")))
-
-(define button1-motion-mask
-  ((c-lambda () long "___result = Button1MotionMask;")))
-
-(define button2-motion-mask
-  ((c-lambda () long "___result = Button2MotionMask;")))
-
-(define button3-motion-mask
-  ((c-lambda () long "___result = Button3MotionMask;")))
-
-(define button4-motion-mask
-  ((c-lambda () long "___result = Button4MotionMask;")))
-
-(define button5-motion-mask
-  ((c-lambda () long "___result = Button5MotionMask;")))
-
-(define button-motion-mask
-  ((c-lambda () long "___result = ButtonMotionMask;")))
-
-(define keymap-state-mask
-  ((c-lambda () long "___result = KeymapStateMask;")))
-
-(define exposure-mask
-  ((c-lambda () long "___result = ExposureMask;")))
-
-(define visibility-change-mask
-  ((c-lambda () long "___result = VisibilityChangeMask;")))
-
-(define structure-notify-mask
-  ((c-lambda () long "___result = StructureNotifyMask;")))
-
-(define resize-redirect-mask
-  ((c-lambda () long "___result = ResizeRedirectMask;")))
-
-(define substructure-notify-mask
-  ((c-lambda () long "___result = SubstructureNotifyMask;")))
-
-(define substructure-redirect-mask
-  ((c-lambda () long "___result = SubstructureRedirectMask;")))
-
-(define focus-change-mask
-  ((c-lambda () long "___result = FocusChangeMask;")))
-
-(define property-change-mask
-  ((c-lambda () long "___result = PropertyChangeMask;")))
-
-(define colormap-change-mask
-  ((c-lambda () long "___result = ColormapChangeMask;")))
-
-(define owner-grab-button-mask
-  ((c-lambda () long "___result = OwnerGrabButtonMask;")))
-
-(define key-press
-  ((c-lambda () long "___result = KeyPress;")))
-
-(define key-release
-  ((c-lambda () long "___result = KeyRelease;")))
-
-(define button-press
-  ((c-lambda () long "___result = ButtonPress;")))
-
-(define button-release
-  ((c-lambda () long "___result = ButtonRelease;")))
-
-(define motion-notify
-  ((c-lambda () long "___result = MotionNotify;")))
-
-(define enter-notify
-  ((c-lambda () long "___result = EnterNotify;")))
-
-(define leave-notify
-  ((c-lambda () long "___result = LeaveNotify;")))
-
-(define focus-in
-  ((c-lambda () long "___result = FocusIn;")))
-
-(define focus-out
-  ((c-lambda () long "___result = FocusOut;")))
-
-(define keymap-notify
-  ((c-lambda () long "___result = KeymapNotify;")))
-
-(define expose
-  ((c-lambda () long "___result = Expose;")))
-
-(define graphics-expose
-  ((c-lambda () long "___result = GraphicsExpose;")))
-
-(define no-expose
-  ((c-lambda () long "___result = NoExpose;")))
-
-(define visibility-notify
-  ((c-lambda () long "___result = VisibilityNotify;")))
-
-(define create-notify
-  ((c-lambda () long "___result = CreateNotify;")))
-
-(define destroy-notify
-  ((c-lambda () long "___result = DestroyNotify;")))
-
-(define unmap-notify
-  ((c-lambda () long "___result = UnmapNotify;")))
-
-(define map-notify
-  ((c-lambda () long "___result = MapNotify;")))
-
-(define map-request
-  ((c-lambda () long "___result = MapRequest;")))
-
-(define reparent-notify
-  ((c-lambda () long "___result = ReparentNotify;")))
-
-(define configure-notify
-  ((c-lambda () long "___result = ConfigureNotify;")))
-
-(define configure-request
-  ((c-lambda () long "___result = ConfigureRequest;")))
-
-(define gravity-notify
-  ((c-lambda () long "___result = GravityNotify;")))
-
-(define resize-request
-  ((c-lambda () long "___result = ResizeRequest;")))
-
-(define circulate-notify
-  ((c-lambda () long "___result = CirculateNotify;")))
-
-(define circulate-request
-  ((c-lambda () long "___result = CirculateRequest;")))
-
-(define property-notify
-  ((c-lambda () long "___result = PropertyNotify;")))
-
-(define selection-clear
-  ((c-lambda () long "___result = SelectionClear;")))
-
-(define selection-request
-  ((c-lambda () long "___result = SelectionRequest;")))
-
-(define selection-notify
-  ((c-lambda () long "___result = SelectionNotify;")))
-
-(define colormap-notify
-  ((c-lambda () long "___result = ColormapNotify;")))
-
-(define client-message
-  ((c-lambda () long "___result = ClientMessage;")))
-
-(define mapping-notify
-  ((c-lambda () long "___result = MappingNotify;")))
-
-(define x-cw-event-mask
-  ((c-lambda () long "___result = CWEventMask;")))
-
-(define x-cw-cursor
-  ((c-lambda () long "___result = CWCursor;")))
+(%c-define-const no-event-mask long "NoEventMask")
+(%c-define-const key-press-mask long "KeyPressMask")
+(%c-define-const key-release-mask long "KeyReleaseMask")
+(%c-define-const button-press-mask long "ButtonPressMask")
+(%c-define-const button-release-mask long "ButtonReleaseMask")
+(%c-define-const enter-window-mask long "EnterWindowMask")
+(%c-define-const leave-window-mask long "LeaveWindowMask")
+(%c-define-const pointer-motion-mask long "PointerMotionMask")
+(%c-define-const pointer-motion-hint-mask long "PointerMotionHintMask")
+(%c-define-const button1-motion-mask long "Button1MotionMask")
+(%c-define-const button2-motion-mask long "Button2MotionMask")
+(%c-define-const button3-motion-mask long "Button3MotionMask")
+(%c-define-const button4-motion-mask long "Button4MotionMask")
+(%c-define-const button5-motion-mask long "Button5MotionMask")
+(%c-define-const button-motion-mask long "ButtonMotionMask")
+(%c-define-const keymap-state-mask long "KeymapStateMask")
+(%c-define-const exposure-mask long "ExposureMask")
+(%c-define-const visibility-change-mask long "VisibilityChangeMask")
+(%c-define-const structure-notify-mask long "StructureNotifyMask")
+(%c-define-const resize-redirect-mask long "ResizeRedirectMask")
+(%c-define-const substructure-notify-mask long "SubstructureNotifyMask")
+(%c-define-const substructure-redirect-mask long "SubstructureRedirectMask")
+(%c-define-const focus-change-mask long "FocusChangeMask")
+(%c-define-const property-change-mask long "PropertyChangeMask")
+(%c-define-const colormap-change-mask long "ColormapChangeMask")
+(%c-define-const owner-grab-button-mask long "OwnerGrabButtonMask")
+(%c-define-const key-press long "KeyPress")
+(%c-define-const key-release long "KeyRelease")
+(%c-define-const button-press long "ButtonPress")
+(%c-define-const button-release long "ButtonRelease")
+(%c-define-const motion-notify long "MotionNotify")
+(%c-define-const enter-notify long "EnterNotify")
+(%c-define-const leave-notify long "LeaveNotify")
+(%c-define-const focus-in long "FocusIn")
+(%c-define-const focus-out long "FocusOut")
+(%c-define-const keymap-notify long "KeymapNotify")
+(%c-define-const expose long "Expose")
+(%c-define-const graphics-expose long "GraphicsExpose")
+(%c-define-const no-expose long "NoExpose")
+(%c-define-const visibility-notify long "VisibilityNotify")
+(%c-define-const create-notify long "CreateNotify")
+(%c-define-const destroy-notify long "DestroyNotify")
+(%c-define-const unmap-notify long "UnmapNotify")
+(%c-define-const map-notify long "MapNotify")
+(%c-define-const map-request long "MapRequest")
+(%c-define-const reparent-notify long "ReparentNotify")
+(%c-define-const configure-notify long "ConfigureNotify")
+(%c-define-const configure-request long "ConfigureRequest")
+(%c-define-const gravity-notify long "GravityNotify")
+(%c-define-const resize-request long "ResizeRequest")
+(%c-define-const circulate-notify long "CirculateNotify")
+(%c-define-const circulate-request long "CirculateRequest")
+(%c-define-const property-notify long "PropertyNotify")
+(%c-define-const selection-clear long "SelectionClear")
+(%c-define-const selection-request long "SelectionRequest")
+(%c-define-const selection-notify long "SelectionNotify")
+(%c-define-const colormap-notify long "ColormapNotify")
+(%c-define-const client-message long "ClientMessage")
+(%c-define-const mapping-notify long "MappingNotify")
+(%c-define-const x-cw-event-mask long "CWEventMask")
+(%c-define-const x-cw-cursor long "CWCursor")
 
 (define x-pending
   (c-lambda (Display*)     ;; display
@@ -744,21 +560,20 @@ end-of-c-declare
 
 (define x-check-mask-event
   (c-lambda (Display*       ;; display
-             long)          ;; event_mask
+            long)          ;; event_mask
             XEvent*/release-rc
-#<<end-of-c-lambda
-XEvent ev;
-XEvent* pev;
-if (XCheckMaskEvent (___arg1, ___arg2, &ev))
-  {
-    pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
-    *pev = ev;
-  }
-else
-  pev = 0;
-___result_voidstar = pev;
-end-of-c-lambda
-))
+            "
+            XEvent ev;
+            XEvent* pev;
+            if (XCheckMaskEvent (___arg1, ___arg2, &ev))
+            {
+              pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
+              *pev = ev;
+            }
+            else
+              pev = 0;
+            ___result_voidstar = pev;
+            "))
 
 (define x-next-event
 	(c-lambda (Display*)       ;; display
@@ -780,241 +595,6 @@ end-of-c-lambda
             int
             "XSelectInput"))
 
-(define x-any-event-type
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->type;"))
-
-(define x-any-event-serial
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-long
-            "___result = ___arg1->xany.serial;"))
-
-(define x-any-event-send-event
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xany.send_event;"))
-
-(define x-any-event-display
-  (c-lambda (XEvent*)       ;; XEvent box
-            Display*
-            "___result_voidstar = ___arg1->xany.display;"))
-
-(define x-any-event-window
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xany.window;"))
-
-(define x-key-event-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xkey.root;"))
-
-(define x-key-event-subwindow
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xkey.subwindow;"))
-
-(define x-key-event-time
-  (c-lambda (XEvent*)       ;; XEvent box
-            Time
-            "___result = ___arg1->xkey.time;"))
-
-(define x-key-event-x
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xkey.x;"))
-
-(define x-key-event-y
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xkey.y;"))
-
-(define x-key-event-x-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xkey.x_root;"))
-
-(define x-key-event-y-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xkey.y_root;"))
-
-(define x-key-event-state
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xkey.state;"))
-
-(define x-key-event-keycode
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xkey.keycode;"))
-
-(define x-key-event-same-screen
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xkey.same_screen;"))
-
-(define x-button-event-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xbutton.root;"))
-
-(define x-button-event-subwindow
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xbutton.subwindow;"))
-
-(define x-button-event-time
-  (c-lambda (XEvent*)       ;; XEvent box
-            Time
-            "___result = ___arg1->xbutton.time;"))
-
-(define x-button-event-x
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xbutton.x;"))
-
-(define x-button-event-y
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xbutton.y;"))
-
-(define x-button-event-x-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xbutton.x_root;"))
-
-(define x-button-event-y-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xbutton.y_root;"))
-
-(define x-button-event-state
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xbutton.state;"))
-
-(define x-button-event-button
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xbutton.button;"))
-
-(define x-button-event-same-screen
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xbutton.same_screen;"))
-
-(define x-motion-event-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xmotion.root;"))
-
-(define x-motion-event-subwindow
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xmotion.subwindow;"))
-
-(define x-motion-event-time
-  (c-lambda (XEvent*)       ;; XEvent box
-            Time
-            "___result = ___arg1->xmotion.time;"))
-
-(define x-motion-event-x
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xmotion.x;"))
-
-(define x-motion-event-y
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xmotion.y;"))
-
-(define x-motion-event-x-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xmotion.x_root;"))
-
-(define x-motion-event-y-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xmotion.y_root;"))
-
-(define x-motion-event-state
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xmotion.state;"))
-
-(define x-motion-event-is-hint
-  (c-lambda (XEvent*)       ;; XEvent box
-            char
-            "___result = ___arg1->xmotion.is_hint;"))
-
-(define x-motion-event-same-screen
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xmotion.same_screen;"))
-
-(define x-crossing-event-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xcrossing.root;"))
-
-(define x-crossing-event-subwindow
-  (c-lambda (XEvent*)       ;; XEvent box
-            Window
-            "___result = ___arg1->xcrossing.subwindow;"))
-
-(define x-crossing-event-time
-  (c-lambda (XEvent*)       ;; XEvent box
-            Time
-            "___result = ___arg1->xcrossing.time;"))
-
-(define x-crossing-event-x
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.x;"))
-
-(define x-crossing-event-y
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.y;"))
-
-(define x-crossing-event-x-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.x_root;"))
-
-(define x-crossing-event-y-root
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.y_root;"))
-
-(define x-crossing-event-mode
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.mode;"))
-
-(define x-crossing-event-detail
-  (c-lambda (XEvent*)       ;; XEvent box
-            int
-            "___result = ___arg1->xcrossing.detail;"))
-
-(define x-crossing-event-same-screen
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xcrossing.same_screen;"))
-
-(define x-crossing-event-focus
-  (c-lambda (XEvent*)       ;; XEvent box
-            bool
-            "___result = ___arg1->xcrossing.focus;"))
-
-(define x-crossing-event-state
-  (c-lambda (XEvent*)       ;; XEvent box
-            unsigned-int
-            "___result = ___arg1->xcrossing.state;"))
-
 (define x-lookup-string
   (c-lambda (XEvent*)      ;; event_struct (XKeyEvent)
             KeySym
@@ -1030,6 +610,18 @@ int n = XLookupString (___CAST(XKeyEvent*,___arg1),
 ___result = ks;
 end-of-c-lambda
 ))
+
+(define x-get-window-attributes
+	(c-lambda (Display* Window)
+						XWindowAttributes*/release-rc
+						"
+						XWindowAttributes wa;
+						XWindowAttributes *pwa;
+						XGetWindowAttributes(___arg1, ___arg2, &wa);
+						pwa = ___CAST(XWindowAttributes*, (___alloc_rc) (sizeof (wa)));
+						*pwa = wa;
+						___result_voidstar = pwa;
+						"))
 
 (define x-set-window-border-width
   (c-lambda (Display* Window unsigned-int)
