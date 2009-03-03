@@ -7,22 +7,24 @@ make_struct_accessor() {
 	local st="$1"
 	local field="$2"
 	local type=$(get_field_type `get_struct_name $st` $field)
-	local accessor="`lisp_name $st-$field`"
+	local result='___result'
 
 	# workarounds
 	case "$field" in
 		c_*) field=${field##c_} ;;
 	esac
+
+	local accessor="`lisp_name $st-$field`"
 	case "$type" in 
-		*'*') return ;;
+		*'*') local result='___result_voidstar' ;;
 		Bool) accessor="${accessor}?" ;;
 	esac
 
 	cat << ! | expand -t2 
 (define $accessor
-  (c-lambda ($st*) 
-	          $type 
-	          "___result = ___arg1->$field;"))
+  (c-lambda ($st*)
+	          $type
+	          "$result = ___arg1->$field;"))
 
 !
 }

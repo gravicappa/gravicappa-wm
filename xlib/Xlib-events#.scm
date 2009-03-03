@@ -1,4 +1,4 @@
-;; XAnyEvent slots accessors
+;; XAnyEvent accessors
 
 (define x-any-event-type
   (c-lambda (XEvent*) 
@@ -25,7 +25,7 @@
             Window 
             "___result = ___arg1->xany.window;"))
 
-;; XKeyEvent slots accessors
+;; XKeyEvent accessors
 
 (define x-key-event-root
   (c-lambda (XEvent*) 
@@ -77,7 +77,7 @@
             Bool 
             "___result = ___arg1->xkey.same_screen;"))
 
-;; XButtonEvent slots accessors
+;; XButtonEvent accessors
 
 (define x-button-event-root
   (c-lambda (XEvent*) 
@@ -129,7 +129,7 @@
             Bool 
             "___result = ___arg1->xbutton.same_screen;"))
 
-;; XMotionEvent slots accessors
+;; XMotionEvent accessors
 
 (define x-motion-event-root
   (c-lambda (XEvent*) 
@@ -181,7 +181,7 @@
             Bool 
             "___result = ___arg1->xmotion.same_screen;"))
 
-;; XCrossingEvent slots accessors
+;; XCrossingEvent accessors
 
 (define x-crossing-event-root
   (c-lambda (XEvent*) 
@@ -243,7 +243,7 @@
             unsigned-int 
             "___result = ___arg1->xcrossing.state;"))
 
-;; XFocusChangeEvent slots accessors
+;; XFocusChangeEvent accessors
 
 (define x-focus-change-event-mode
   (c-lambda (XEvent*) 
@@ -255,7 +255,7 @@
             int 
             "___result = ___arg1->xfocus.detail;"))
 
-;; XExposeEvent slots accessors
+;; XExposeEvent accessors
 
 (define x-expose-event-x
   (c-lambda (XEvent*) 
@@ -282,7 +282,7 @@
             int 
             "___result = ___arg1->xexpose.count;"))
 
-;; XGraphicsExposeEvent slots accessors
+;; XGraphicsExposeEvent accessors
 
 (define x-graphics-expose-event-drawable
   (c-lambda (XEvent*) 
@@ -324,7 +324,7 @@
             int 
             "___result = ___arg1->xgraphicsexpose.minor_code;"))
 
-;; XNoExposeEvent slots accessors
+;; XNoExposeEvent accessors
 
 (define x-no-expose-event-drawable
   (c-lambda (XEvent*) 
@@ -341,14 +341,14 @@
             int 
             "___result = ___arg1->xnoexpose.minor_code;"))
 
-;; XVisibilityEvent slots accessors
+;; XVisibilityEvent accessors
 
 (define x-visibility-event-state
   (c-lambda (XEvent*) 
             int 
             "___result = ___arg1->xvisibility.state;"))
 
-;; XCreateWindowEvent slots accessors
+;; XCreateWindowEvent accessors
 
 (define x-create-window-event-parent
   (c-lambda (XEvent*) 
@@ -385,14 +385,14 @@
             Bool 
             "___result = ___arg1->xcreatewindow.override_redirect;"))
 
-;; XDestroyWindowEvent slots accessors
+;; XDestroyWindowEvent accessors
 
 (define x-destroy-window-event-event
   (c-lambda (XEvent*) 
             Window 
             "___result = ___arg1->xdestroywindow.event;"))
 
-;; XUnmapEvent slots accessors
+;; XUnmapEvent accessors
 
 (define x-unmap-event-event
   (c-lambda (XEvent*) 
@@ -404,7 +404,7 @@
             Bool 
             "___result = ___arg1->xunmap.from_configure;"))
 
-;; XMapEvent slots accessors
+;; XMapEvent accessors
 
 (define x-map-event-event
   (c-lambda (XEvent*) 
@@ -416,14 +416,14 @@
             Bool 
             "___result = ___arg1->xmap.override_redirect;"))
 
-;; XMapRequestEvent slots accessors
+;; XMapRequestEvent accessors
 
 (define x-map-request-event-parent
   (c-lambda (XEvent*) 
             Window 
             "___result = ___arg1->xmaprequest.parent;"))
 
-;; XReparentEvent slots accessors
+;; XReparentEvent accessors
 
 (define x-reparent-event-event
   (c-lambda (XEvent*) 
@@ -450,7 +450,7 @@
             Bool 
             "___result = ___arg1->xreparent.override_redirect;"))
 
-;; XConfigureEvent slots accessors
+;; XConfigureEvent accessors
 
 (define x-configure-event-event
   (c-lambda (XEvent*) 
@@ -492,7 +492,7 @@
             Bool 
             "___result = ___arg1->xconfigure.override_redirect;"))
 
-;; XGravityEvent slots accessors
+;; XGravityEvent accessors
 
 (define x-gravity-event-event
   (c-lambda (XEvent*) 
@@ -509,7 +509,7 @@
             int 
             "___result = ___arg1->xgravity.y;"))
 
-;; XResizeRequestEvent slots accessors
+;; XResizeRequestEvent accessors
 
 (define x-resize-request-event-width
   (c-lambda (XEvent*) 
@@ -521,7 +521,7 @@
             int 
             "___result = ___arg1->xresizerequest.height;"))
 
-;; XConfigureRequestEvent slots accessors
+;; XConfigureRequestEvent accessors
 
 (define x-configure-request-event-parent
   (c-lambda (XEvent*) 
@@ -568,7 +568,7 @@
             unsigned-long 
             "___result = ___arg1->xconfigurerequest.value_mask;"))
 
-;; XCirculateEvent slots accessors
+;; XCirculateEvent accessors
 
 (define x-circulate-event-event
   (c-lambda (XEvent*) 
@@ -580,7 +580,7 @@
             int 
             "___result = ___arg1->xcirculate.place;"))
 
-;; XCirculateRequestEvent slots accessors
+;; XCirculateRequestEvent accessors
 
 (define x-circulate-request-event-parent
   (c-lambda (XEvent*) 
@@ -592,7 +592,7 @@
             int 
             "___result = ___arg1->xcirculaterequest.place;"))
 
-;; XPropertyEvent slots accessors
+;; XPropertyEvent accessors
 
 (define x-property-event-atom
   (c-lambda (XEvent*) 
@@ -609,7 +609,7 @@
             int 
             "___result = ___arg1->xproperty.state;"))
 
-;; XSelectionClearEvent slots accessors
+;; XSelectionClearEvent accessors
 
 (define x-selection-clear-event-selection
   (c-lambda (XEvent*) 
@@ -621,7 +621,7 @@
             Time 
             "___result = ___arg1->xselectionclear.time;"))
 
-;; XSelectionRequestEvent slots accessors
+;; XSelectionRequestEvent accessors
 
 (define x-selection-request-event-owner
   (c-lambda (XEvent*) 
@@ -653,7 +653,7 @@
             Time 
             "___result = ___arg1->xselectionrequest.time;"))
 
-;; XSelectionEvent slots accessors
+;; XSelectionEvent accessors
 
 (define x-selection-event-requestor
   (c-lambda (XEvent*) 
@@ -680,7 +680,7 @@
             Time 
             "___result = ___arg1->xselection.time;"))
 
-;; XColormapEvent slots accessors
+;; XColormapEvent accessors
 
 (define x-colormap-event-colormap
   (c-lambda (XEvent*) 
@@ -697,7 +697,7 @@
             int 
             "___result = ___arg1->xcolormap.state;"))
 
-;; XClientMessageEvent slots accessors
+;; XClientMessageEvent accessors
 
 (define x-client-message-event-message-type
   (c-lambda (XEvent*) 
@@ -709,7 +709,7 @@
             int 
             "___result = ___arg1->xclient.format;"))
 
-;; XMappingEvent slots accessors
+;; XMappingEvent accessors
 
 (define x-mapping-event-request
   (c-lambda (XEvent*) 
@@ -726,7 +726,7 @@
             int 
             "___result = ___arg1->xmapping.count;"))
 
-;; XErrorEvent slots accessors
+;; XErrorEvent accessors
 
 (define x-error-event-resourceid
   (c-lambda (XEvent*) 

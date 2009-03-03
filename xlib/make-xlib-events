@@ -33,6 +33,7 @@ make_event_accessor() {
 	case "$field" in
 		c_*) field=${field##c_} ;;
 	esac
+
 	local accessor="`lisp_name $ev-$field`"
 	case "$type" in 
 		*'*') result='___result_voidstar' ;;
@@ -65,26 +66,17 @@ make_any_event_accessors() {
 	done
 }
 
-#get_field_type `get_struct_name XAnyEvent` serial
-#get_field_type `get_struct_name XAnyEvent` display
-#get_field_type `get_struct_name XKeyEvent` x
-#exit
-
 cat << !
-;; XAnyEvent slots accessors
+;; XAnyEvent accessors
 
 `make_any_event_accessors`
 
 !
 
 for ev in $events ; do
-	#echo `lisp_name $ev` struct: `get_struct_name $ev`
-	#for f in $(get_struct_fields `get_struct_name $ev`); do
-	#	echo " ." `lisp_name $f`
-	#done
 	if [ -n "$(get_struct_fields `get_struct_name $ev`)" ] ; then
 		cat << !
-;; $ev slots accessors
+;; $ev accessors
 
 `make_event_accessors "$ev"`
 
