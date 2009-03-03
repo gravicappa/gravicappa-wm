@@ -3,7 +3,9 @@
 . ./functions
 create_tags
 
-common_fields_re='type|serial|send_event|display|window'
+common_fields='type serial send_event display window'
+common_fields_re=`for f in $common_fields; do printf "\<$f\>|"; done \
+                  | sed 's/|$//'`
 
 events=`cut -f1 < "$tags" | grep -E '^X[A-Za-z]*Event' | grep -v XAnyEvent`
 
@@ -25,14 +27,15 @@ make_event_accessor() {
 	local ev_field="$2"
 	local field="$3"
 	local type="$(get_field_type `get_struct_name $ev` $field)"
-	local accessor="`lisp_name $ev-$field`"
+	local result='___result'
 
 	# workarounds
 	case "$field" in
 		c_*) field=${field##c_} ;;
 	esac
+	local accessor="`lisp_name $ev-$field`"
 	case "$type" in 
-		*'*') return ;;
+		*'*') result='___result_voidstar' ;;
 		Bool) accessor="${accessor}?" ;;
 	esac
 
@@ -40,7 +43,7 @@ make_event_accessor() {
 (define $accessor
   (c-lambda (XEvent*) 
 	          $type 
-	          "___result = ___arg1->$ev_field.$field;"))
+	          "$result = ___arg1->$ev_field.$field;"))
 
 !
 }
@@ -89,4 +92,3 @@ for ev in $events ; do
 	fi
 done
 
-rm_tags

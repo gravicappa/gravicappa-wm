@@ -15,6 +15,11 @@
             Bool 
             "___result = ___arg1->xany.send_event;"))
 
+(define x-any-event-display
+  (c-lambda (XEvent*) 
+            Display* 
+            "___result_voidstar = ___arg1->xany.display;"))
+
 (define x-any-event-window
   (c-lambda (XEvent*) 
             Window 
@@ -26,6 +31,11 @@
   (c-lambda (XEvent*) 
             Window 
             "___result = ___arg1->xkey.root;"))
+
+(define x-key-event-subwindow
+  (c-lambda (XEvent*) 
+            Window 
+            "___result = ___arg1->xkey.subwindow;"))
 
 (define x-key-event-time
   (c-lambda (XEvent*) 
@@ -74,6 +84,11 @@
             Window 
             "___result = ___arg1->xbutton.root;"))
 
+(define x-button-event-subwindow
+  (c-lambda (XEvent*) 
+            Window 
+            "___result = ___arg1->xbutton.subwindow;"))
+
 (define x-button-event-time
   (c-lambda (XEvent*) 
             Time 
@@ -121,6 +136,11 @@
             Window 
             "___result = ___arg1->xmotion.root;"))
 
+(define x-motion-event-subwindow
+  (c-lambda (XEvent*) 
+            Window 
+            "___result = ___arg1->xmotion.subwindow;"))
+
 (define x-motion-event-time
   (c-lambda (XEvent*) 
             Time 
@@ -167,6 +187,11 @@
   (c-lambda (XEvent*) 
             Window 
             "___result = ___arg1->xcrossing.root;"))
+
+(define x-crossing-event-subwindow
+  (c-lambda (XEvent*) 
+            Window 
+            "___result = ___arg1->xcrossing.subwindow;"))
 
 (define x-crossing-event-time
   (c-lambda (XEvent*) 
@@ -662,7 +687,7 @@
             Colormap 
             "___result = ___arg1->xcolormap.colormap;"))
 
-(define x-colormap-event-c-new?
+(define x-colormap-event-new?
   (c-lambda (XEvent*) 
             Bool 
             "___result = ___arg1->xcolormap.new;"))
@@ -673,6 +698,11 @@
             "___result = ___arg1->xcolormap.state;"))
 
 ;; XClientMessageEvent slots accessors
+
+(define x-client-message-event-message-type
+  (c-lambda (XEvent*) 
+            Atom 
+            "___result = ___arg1->xclient.message_type;"))
 
 (define x-client-message-event-format
   (c-lambda (XEvent*) 
