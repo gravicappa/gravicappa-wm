@@ -3,7 +3,9 @@
 name="$1"
 
 gen_exported() {
-	for f in `grep -E '^\((define)|(%define)' | cut -d\  -f2 | grep -v '(%'`; do
+	for f in `grep -E '^\((define)|(%define)' \
+		        | grep -v 'define/x-object' \
+						| cut -d\  -f2 | grep -v '(%'`; do
 		item=${f#(*}
 		item=${item%*)}
 		printf "\n    %s" "$item"

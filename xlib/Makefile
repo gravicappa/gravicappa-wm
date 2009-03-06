@@ -1,7 +1,7 @@
 LDFLAGS = -lX11
 GSCFLAGS= -ld-options "${LDFLAGS}"
 
-.PHONY: all clean clean-obj events
+.PHONY: all clean clean-obj events clean-generated
 
 all: Xlib.o1
 
@@ -10,6 +10,9 @@ clean: clean-obj
 
 clean-obj:
 	-rm *.o* 2> /dev/null
+
+clean-generated:
+	-rm 'Xlib-events#.scm' 'Xlib-accessors#.scm'
 
 events: Xlib-events\#.scm
 accessors: Xlib-accessors\#.scm

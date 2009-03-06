@@ -4,6 +4,7 @@
 create_tags
 
 make_struct_accessor() {
+	[ -z "$1" ] || [ -z "$2" ] && return
 	local st="$1"
 	local field="$2"
 	local type=$(get_field_type `get_struct_name $st` $field)
@@ -16,6 +17,7 @@ make_struct_accessor() {
 
 	local accessor="`lisp_name $st-$field`"
 	case "$type" in 
+		*[*) return ;;
 		*'*') local result='___result_voidstar' ;;
 		Bool) accessor="${accessor}?" ;;
 	esac
@@ -25,6 +27,14 @@ make_struct_accessor() {
   (c-lambda ($st*)
 	          $type
 	          "$result = ___arg1->$field;"))
+
+!
+
+	cat << ! | expand -t2 
+(define ${accessor}-set!
+  (c-lambda ($st* $type)
+					  void
+	          "___arg1->$field = ___arg2;"))
 
 !
 }

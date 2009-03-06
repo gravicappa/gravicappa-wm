@@ -23,6 +23,8 @@ get_event_field() {
 }
 
 make_event_accessor() {
+	[ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] && return
+
 	local ev="$1"
 	local ev_field="$2"
 	local field="$3"
@@ -36,6 +38,7 @@ make_event_accessor() {
 
 	local accessor="`lisp_name $ev-$field`"
 	case "$type" in 
+		*'['*) return ;;
 		*'*') result='___result_voidstar' ;;
 		Bool) accessor="${accessor}?" ;;
 	esac
@@ -47,6 +50,14 @@ make_event_accessor() {
 	          "$result = ___arg1->$ev_field.$field;"))
 
 !
+
+	cat << ! | expand -t2 
+(define ${accessor}-set!
+  (c-lambda (XEvent* $type)
+	          void
+	          "___arg1->$ev_field.$field = ___arg2;"))
+
+!
 }
 
 make_event_accessors() {
@@ -54,7 +65,7 @@ make_event_accessors() {
 	field="`get_event_field $ev`"
 	name=`get_struct_name $ev`
 	for f in `get_event_fields $name`; do
-		make_event_accessor $ev $field $f
+		make_event_accessor "$ev" "$field" "$f"
 	done
 }
 
@@ -62,7 +73,7 @@ make_any_event_accessors() {
 	ev=XAnyEvent
 	field="`get_event_field $ev`"
 	for f in $(get_struct_fields `get_struct_name XAnyEvent`) ; do
-		make_event_accessor $ev $field $f
+		make_event_accessor "$ev" "$field" "$f"
 	done
 }
 

@@ -9,7 +9,7 @@ create_tags() {
 	else
 		tags=./tags
 	fi
-	ctags -f "$tags" --sort=no '/usr/include/X11/Xlib.h'
+	ctags -f "$tags" --sort=no '/usr/include/X11/Xlib.h' '/usr/include/X11/Xutil.h'
 }
 
 rm_tags() {
@@ -39,7 +39,9 @@ get_field_type() {
 }
 
 lisp_name() {
-	echo $1 | sed 's/[A-Z]/-\l&/g;s/_/-/g' | sed 's/^-//' | sed 's/-\+-/-/g' 
+	echo $1 | sed 's/[A-Z]/-&/g;s/_/-/g' \
+	| sed 's/\(\w\)-\([A-Z]\)-\([A-Z]\)-/\1-\2\3-/g' \
+	| sed 's/^-//' | sed 's/-\+-/-/g' | tr A-Z a-z
 }
 
 #create_tags
