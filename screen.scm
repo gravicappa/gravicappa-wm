@@ -1,6 +1,6 @@
 
 (define-structure screen
-  id x y w h root clients)
+  id x y w h root clients focus-stack)
 
 (define *screens* '())
 
@@ -34,3 +34,15 @@
 								(reverse screens))))))
 
 (add-to-list *internal-startup-hook* 'init-screens)
+
+(define (client-from-window window screen)
+  (find-if (lambda (c) (eq? (client-window c) window))
+           (screen-clients screen)))
+
+(define (client-from-window* window)
+  (let loop ((screens *screens*))
+    (when (pair? *screens*)
+      (let ((c (client-from-window window (car *screens*))))
+        (if c
+            c
+            (loop (cdr *screens*)))))))

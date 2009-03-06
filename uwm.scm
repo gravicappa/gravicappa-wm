@@ -9,10 +9,6 @@
 (include "screen.scm")
 (include "events.scm")
 
-(define (display-log . args)
-  (display (cons ";; " args) (current-error-port))
-  (newline (current-error-port)))
-
 (define (handle-x11-event xdisplay ev)
   (display-log "Caught event type: " (x-any-event-type ev)
 							 " data: " ev)
