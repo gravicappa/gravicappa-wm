@@ -46,7 +46,7 @@
                           (client-w c)
                           (client-h c))
     (x-map-window display (client-window c))
-    (x-window-state-set! display window +wm-state+ +x-normal-state+)
+    (x-window-state-set! display window +wm-state+ +normal-state+)
     ;(arrange)
     ))
 
@@ -56,3 +56,63 @@
 		(let ((wa (x-get-window-attributes display window)))
 			(unless (x-window-attribute-override-redirect? wa)
 				(manage-window display window wa (find-screen parent))))))
+
+(define-x-event mapping-notify (display window ev request)
+  (x-refresh-keyboard-mapping ev)
+  (when (eq? request +mapping-keyboard+)
+    ;(grab-keys display)
+    ))
+
+(define (handle-unmanaged-window display window x y width height border-width
+                                 above value-mask detail)
+  (let* ((set? (lambda (flag) (not (zero? (bitwise-and flag value-mask)))))
+         (if-set (lambda (flag value)
+                   (if (set? flag)
+                       value
+                       '()))))
+    (x-configure-window display
+                        window
+                        x: (if-set +cw-x+ x)
+                        y: (if-set +cw-y+ y)
+                        width: (if-set +cw-width+ width)
+                        height: (if-set +cw-height+ height)
+                        border-width: (if-set +cw-border-width+ border-width)
+                        sibling: (if-set +cw-sibling+ above)
+                        stack-mode: (if-set +cw-stack-mode+ detail))))
+
+(define-x-event configure-request (display window x y width height 
+                                   border-width above value-mask detail)
+  (let* ((c (client-from-window* window))
+         (set? (lambda (flag) (not (zero? (bitwise-and flag value-mask)))))
+         (if-set (lambda (flag value)
+                   (if (set? flag)
+                       value
+                       '()))))
+    (if (null? c)
+        (handle-unmanaged-window display window x y width height border-width
+                                 above value-mask detail)
+        (let ((s (client-screen c)))
+          (cond ((set? +cw-border-width+)
+                 (client-border-set! c border-width))
+                ((client-floating? c)
+                 (if (set? +cw-x+)
+                     (client-x-set! c (+ (screen-x s) x)))
+                 (if (set? +cw-y+)
+                     (client-y-set! c (+ (screen-y s) y)))
+                 (if (set? +cw-width+)
+                   (client-w-set! c width))
+                 (if (set? +cw-height+)
+                     (client-w-set! c height))
+                 (maybe-center-client-on-screen c)
+                 (if (and (set? (bitwise-ior +cw-x+ +cw-y+))
+                          (not (set? (bitwise-ior +cw-width+ +cw-height+))))
+                     (configure-client display c))
+                 (if (client-visible? c)
+                     (x-move-resize-client (client-window c)
+                                           (client-x c)
+                                           (client-y c)
+                                           (client-w c)
+                                           (client-h c))))
+                (else
+                  (configure-client display c)))))
+    (x-sync display #f)))

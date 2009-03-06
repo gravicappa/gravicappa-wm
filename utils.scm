@@ -80,10 +80,12 @@
     (string->symbol (string-append (symbol->string type) 
                                    "-event-" 
                                    (symbol->string slot)))))
+
 (define-macro (x-event-lambda event args . body)
   (let ((any-slots (filter (lambda (slot) (find slot %any-events))
                            args))
-        (slots (filter (lambda (slot) (not (find slot %any-events)))
+        (slots (filter (lambda (slot) (not (or (find slot %any-events)
+                                               (eq? slot 'ev))))
                        args))
         (x-event (string->symbol (string-append "x-" (symbol->string event))))
         (ev (gensym)))
@@ -93,7 +95,10 @@
                     any-slots)
               ,@(map (lambda (i)
                        `(,i (,(make-event-symbol x-event i) ,ev)))
-                     slots))
+                     slots)
+              ,@(if (find 'ev args)
+                    `(ev ,ev)
+                    '()))
          ,@body))))
 
 (define-macro (define-x-event event args . body)
