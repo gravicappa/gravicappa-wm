@@ -1,5 +1,9 @@
 (define *x11-event-dispatcher* (make-table))
 
+(define (display-log . args)
+  (display (cons ";; " args) (current-error-port))
+  (newline (current-error-port)))
+
 (define-macro (eval-when-load expr)
   (eval expr)
   `(begin))
@@ -34,11 +38,17 @@
   `(if (not (find ,item ,<list>))
        (set! ,<list> (append ,<list> (list ,item)))))
 
+(define-macro (push item <list>)
+  `(set! <list> (cons ,item <list>)))
+
 (define-macro (define-hook name)
   `(define ,name '()))
 
 (eval-when-load 
-  (define %any-events '(type serial send-event window)))
+  (define %any-events '(type display serial send-event window)))
+
+(define (complement fn)
+  (lambda args (not (apply fn args))))
 
 (eval-when-load
   (define (filter fn <list>)
@@ -62,12 +72,14 @@
   (define (find item <list>)
     (find-if (lambda (i) (eq? i item)) <list>)))
 
+(define (remove-if fn <list>)
+  (filter (complement fn) <list>))
+
 (eval-when-load
   (define (make-event-symbol type slot)
     (string->symbol (string-append (symbol->string type) 
                                    "-event-" 
                                    (symbol->string slot)))))
-
 (define-macro (x-event-lambda event args . body)
   (let ((any-slots (filter (lambda (slot) (find slot %any-events))
                            args))
