@@ -1,21 +1,16 @@
 ;;;============================================================================
-
 ;;; File: "Xlib.scm", Time-stamp: <2009-01-13 14:06:51 feeley>
-
 ;;; Copyright (c) 2006-2009 by Marc Feeley, All Rights Reserved.
-
+;;;
 ;;; A simple interface to the X Window System Xlib library.
-
-;; Note: This interface to Xlib is still in development.  There are
-;;       still memory leaks in the interface.
-
+;;; Note: This interface to Xlib is still in development.  There are
+;;;       still memory leaks in the interface.
 ;;;============================================================================
 
-(##namespace ("Xlib#"))
+(namespace ("Xlib#"))
 
 (##include "~~lib/gambit#.scm")
-
-(##include "Xlib#.scm")
+(include "Xlib#.scm")
 
 (declare
   (standard-bindings)
@@ -25,7 +20,107 @@
 
 (define-macro (%eval-when-load expr)
   (eval expr)
-	`(begin))
+  `(begin))
+
+(%eval-when-load
+  (define (%string-replace new old str)
+    (list->string (map (lambda (c)
+                         (if (char=? c old)
+                             new
+                             c))
+                       (string->list str)))))
+
+(define (%provided-mask v shift)
+  (if (eq? v '())
+      0
+      (arithmetic-shift 1 shift)))
+
+(define (%provided-value v default)
+  (if (eq? v '())
+      default
+      v))
+
+(%eval-when-load
+  (define (%make-provided-mask args)
+    (let loop ((args args)
+               (idx 0)
+               (acc '()))
+      (if (pair? args)
+          (let ((arg (car args)))
+            (loop (cdr args)
+                  (+ idx 1)
+                  (cons `(%provided-mask ,(car arg) ,idx) acc)))
+          acc))))
+
+(%eval-when-load
+  (define (%get-default-value arg)
+    (if (null? (cddr arg))
+        (case (cadr arg)
+          ((int unsigned-long unsigned-int Bool long) 0)
+          ((Window Pixmap Cursor Colormap) '+x-none+)
+          (else (error (string-append "Cannot determine default type for "
+                                      (object->string (cadr arg))))))
+        (caddr arg))))
+
+(define-macro (%define/x-object name type)
+  (let* ((sym (string->symbol name))
+         (ptr (string->symbol (string-append name "*")))
+         (ptr/free (string->symbol (string-append name "*/" type)))
+         (releaser (string-append type "_" name))
+         (c-releaser (%string-replace #\_ #\- releaser)))
+    `(begin
+       (c-declare
+         ,(string-append
+            "___SCMOBJ " c-releaser "(void *ptr)\n"
+            "{\n"
+            name " *p = ptr;\n"
+            "#ifdef debug_free\n"
+            "printf(\"" c-releaser "(%p)\\n\", p);\n"
+            "fflush(stdout);\n"
+            "#endif\n"
+            "#ifdef really_free\n"
+            (cond
+              ((string=? type "release-rc")
+               "___EXT(___release_rc)(p);\n")
+              ((string=? type "XFree")
+               "XFree(p);\n"))
+            "#endif\n"
+            "return ___FIX(___NO_ERR);\n"
+            "}\n"))
+       (c-define-type ,sym ,name)
+       (c-define-type ,ptr (pointer ,sym (,ptr)))
+       (c-define-type ,ptr/free (pointer ,sym (,ptr) ,c-releaser)))))
+
+(define-macro (%define/x-const name type c-name)
+  `(define ,name
+     ((c-lambda () ,type ,(string-append "___result = " c-name ";")))))
+
+
+(define-macro (%define/x-setter name args key-args type c-body)
+  (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
+        (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
+        (mask-var (gensym)))
+    `(define (,name ,@(map car args) #!key ,@lambda-key-args)
+       (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
+         ((c-lambda ,types ,type ,c-body)
+          ,@(map car args)
+          ,mask-var
+          ,@(map (lambda (a)
+                   `(%provided-value ,(car a) ,(%get-default-value a)))
+                 key-args))))))
+
+(define-macro (%define/x-pstruct-getter name args type code)
+  (let ((ret-type (string->symbol (string-append type "*/release-rc"))))
+    `(define ,name
+       (c-lambda ,args
+                 ,ret-type
+                 ,(string-append
+                   type " data, *pdata;\n"
+                   code "\n"
+                   "pdata = ___CAST(" type "*, (___alloc_rc)(sizeof(data)));
+                   *pdata = data;
+                   ___result_voidstar = pdata;
+                   ")))))
 
 ;;;============================================================================
 
@@ -78,61 +173,33 @@ ___SCMOBJ XFree_GC( void* ptr )
 end-of-c-declare
 )
 
-(%eval-when-load
-	(define (%string-replace new old str)
-		(list->string (map (lambda (c)
-												 (if (char=? c old)
-														 new
-														 c))
-											 (string->list str)))))
-
-(define-macro (%c-define-x-object name type)
-  (let* ((sym (string->symbol name))
-				 (ptr (string->symbol (string-append name "*")))
-				 (ptr/free (string->symbol (string-append name "*/" type)))
-				 (releaser (string-append type "_" name))
-				 (c-releaser (%string-replace #\_ #\- releaser)))
-		`(begin
-			 (c-declare
-				 ,(string-append
-						"___SCMOBJ " c-releaser "(void *ptr)\n"
-						"{\n"
-						name " *p = ptr;\n"
-						"#ifdef debug_free\n"
-						"printf(\"" c-releaser "(%p)\\n\", p);\n"
-						"fflush(stdout);\n"
-						"#endif\n"
-						"#ifdef really_free\n"
-						(cond
-							((string=? type "release-rc")
-							 "___EXT(___release_rc)(p);\n")
-							((string=? type "XFree")
-							 "XFree(p);\n"))
-						"#endif\n"
-						"return ___FIX(___NO_ERR);\n"
-						"}\n"))
-			 (c-define-type ,sym ,name)
-			 (c-define-type ,ptr (pointer ,sym (,ptr)))
-			 (c-define-type ,ptr/free (pointer ,sym (,ptr) ,c-releaser)))))
-
-(define-macro (%define/x-const name type c-name)
-  `(define ,name
-     ((c-lambda () ,type ,(string-append "___result = " c-name ";")))))
-
 (c-define-type GC (pointer (struct "_XGC") (GC)))
 (c-define-type GC/XFree (pointer (struct "_XGC") (GC) "XFree_GC"))
 
-(%c-define-x-object "XGCValues" "release-rc")
-(%c-define-x-object "XEvent" "release-rc")
-(%c-define-x-object "XColor" "release-rc")
-(%c-define-x-object "Visual" "XFree")
-(%c-define-x-object "Screen" "XFree")
-(%c-define-x-object "XFontStruct" "XFree")
-(%c-define-x-object "Display" "XFree")
-(%c-define-x-object "XWindowAttributes" "release-rc")
+(%define/x-object "XGCValues" "release-rc")
+(%define/x-object "XEvent" "release-rc")
+(%define/x-object "XColor" "release-rc")
+(%define/x-object "Visual" "XFree")
+(%define/x-object "Screen" "XFree")
+(%define/x-object "XFontStruct" "XFree")
+(%define/x-object "Display" "XFree")
+(%define/x-object "XWindowAttributes" "release-rc")
+(%define/x-object "XSizeHints" "release-rc")
 
-(##include "Xlib-events#.scm")
-(##include "Xlib-accessors#.scm")
+(include "Xlib-events#.scm")
+(include "Xlib-accessors#.scm")
+
+(define x-size-hints-min-aspect-x
+  (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.x;"))
+
+(define x-size-hints-min-aspect-y
+  (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.y;"))
+
+(define x-size-hints-max-aspect-x
+  (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.x;"))
+
+(define x-size-hints-max-aspect-y
+  (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.y;"))
 
 (define x-open-display
   (c-lambda (char*)        ;; display_name
@@ -212,6 +279,11 @@ end-of-c-declare
   (c-lambda (Screen*)      ;; screen
             Visual*/XFree
             "XDefaultVisualOfScreen"))
+
+(define x-intern-atom
+  (c-lambda (Display* char-string Bool)
+            Atom
+            "XInternAtom"))
 
 (define x-default-gc
   (c-lambda (Display*      ;; display
@@ -336,89 +408,19 @@ end-of-c-declare
              XColor*/release-rc
              "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XColor));")))
 
-(define x-color-pixel
-  (c-lambda (XColor*)       ;; XColor box
-             unsigned-long
-            "___result = ___arg1->pixel;"))
-
-(define x-color-pixel-set!
-  (c-lambda (XColor*        ;; XColor box
-             unsigned-long) ;; intensity
-            void
-            "___arg1->pixel = ___arg2;"))
-
-(define x-color-red
-  (c-lambda (XColor*)       ;; XColor box
-             unsigned-short
-            "___result = ___arg1->red;"))
-
-(define x-color-red-set!
-  (c-lambda (XColor*        ;; XColor box
-             unsigned-short);; intensity
-            void
-            "___arg1->red = ___arg2;"))
-
-(define x-color-green
-  (c-lambda (XColor*)       ;; XColor box
-             unsigned-short
-            "___result = ___arg1->green;"))
-
-(define x-color-green-set!
-  (c-lambda (XColor*        ;; XColor box
-             unsigned-short);; intensity
-            void
-            "___arg1->green = ___arg2;"))
-
-(define x-color-blue
-  (c-lambda (XColor*)       ;; XColor box
-             unsigned-short
-            "___result = ___arg1->blue;"))
-
-(define x-color-blue-set!
-  (c-lambda (XColor*        ;; XColor box
-             unsigned-short);; intensity
-            void
-            "___arg1->blue = ___arg2;"))
-
 (define (make-x-gc-values-box)
-  ((c-lambda ()
-             XGCValues*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XGCValues));")))
-
-(define x-gc-values-foreground
-  (c-lambda (XGCValues*)    ;; XGCValues box
-            unsigned-long
-            "return ___arg1->foreground;"))
-
-(define x-gc-values-foreground-set!
-  (c-lambda (XGCValues*     ;; XGCValues box
-             unsigned-long) ;; pixel index
-            void
-            "___arg1->foreground = ___arg2;"))
-
-(define x-gc-values-background
-  (c-lambda (XGCValues*)    ;; XGCValues box
-            unsigned-long
-            "return ___arg1->background;"))
-
-(define x-gc-values-background-set!
-  (c-lambda (XGCValues*     ;; XGCValues box
-             unsigned-long) ;; pixel index
-            void
-            "___arg1->background = ___arg2;"))
-
-(define x-gc-values-font
-  (c-lambda (XGCValues*)    ;; XGCValues box
-            Font
-            "return ___arg1->font;"))
-
-(define x-gc-values-font-set!
-  (c-lambda (XGCValues*     ;; XGCValues box
-             Font)          ;; font_ID
-            void
-            "___arg1->font = ___arg2;"))
+  ((c-lambda
+     ()
+     XGCValues*/release-rc
+     "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XGCValues));")))
 
 (%define/x-const +x-none+ unsigned-long "None")
+(%define/x-const +p-base-size+ unsigned-long "PBaseSize")
+(%define/x-const +p-min-size+ unsigned-long "PMinSize")
+(%define/x-const +p-max-size+ unsigned-long "PMaxSize")
+(%define/x-const +p-resize-inc+ unsigned-long "PResizeInc")
+(%define/x-const +p-aspect+ unsigned-long "PAspect")
+(%define/x-const +x-normal-state+ unsigned-long "NormalState")
 (%define/x-const x-gc-function unsigned-long "GCFunction")
 (%define/x-const x-gc-plane-mask unsigned-long "GCPlaneMask")
 (%define/x-const x-gc-foreground unsigned-long "GCForeground")
@@ -577,17 +579,17 @@ end-of-c-declare
             "))
 
 (define x-next-event
-	(c-lambda (Display*)       ;; display
-						XEvent*/release-rc
-						"
-						XEvent ev;
-						XEvent* pev;
-						XNextEvent(___arg1, &ev);
-						pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
-						*pev = ev;
-						___result_voidstar = pev;
-						"
-						))
+  (c-lambda (Display*)       ;; display
+            XEvent*/release-rc
+            "
+            XEvent ev;
+            XEvent* pev;
+            XNextEvent(___arg1, &ev);
+            pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
+            *pev = ev;
+            ___result_voidstar = pev;
+            "
+            ))
 
 (define x-select-input
   (c-lambda (Display*       ;; display
@@ -595,6 +597,16 @@ end-of-c-declare
              long)          ;; event_mask
             int
             "XSelectInput"))
+
+(define (make-x-event-box)
+  ((c-lambda ()
+             XEvent*/release-rc
+             "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XEvent));")))
+
+(define x-send-event
+  (c-lambda (Display* Window Bool long XEvent*)
+            Status
+            "XSendEvent"))
 
 (define x-lookup-string
   (c-lambda (XEvent*)      ;; event_struct (XKeyEvent)
@@ -612,17 +624,28 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(define x-get-window-attributes
-	(c-lambda (Display* Window)
-						XWindowAttributes*/release-rc
-						"
-						XWindowAttributes wa;
-						XWindowAttributes *pwa;
-						XGetWindowAttributes(___arg1, ___arg2, &wa);
-						pwa = ___CAST(XWindowAttributes*, (___alloc_rc) (sizeof (wa)));
-						*pwa = wa;
-						___result_voidstar = pwa;
-						"))
+(%define/x-pstruct-getter
+  x-get-window-attributes (Display* Window) "XWindowAttributes"
+  "XGetWindowAttributes(___arg1, ___arg2, &data);")
+
+(%define/x-pstruct-getter
+  x-get-wm-normal-hints (Display* Window) "XSizeHints"
+  "long msize;
+   if(!XGetWMNormalHints(___arg1, ___arg2, &data, &msize))
+     data.flags = PSize;")
+
+(define x-window-state-set!
+  (c-lambda (Display* Window Atom long)
+            int
+            "long data[] = {___arg4, None};
+             ___result = XChangeProperty(___arg1,
+                                         ___arg2,
+                                         ___arg3,
+                                         ___arg3,
+                                         32,
+                                         PropModeReplace,
+                                         (unsigned char *)data,
+                                         32);"))
 
 (define x-set-window-border-width
   (c-lambda (Display* Window unsigned-int)
@@ -649,115 +672,75 @@ end-of-c-lambda
             int
             "XResizeWindow"))
 
-(define (%provided-mask v shift)
-  (if (eq? v '())
-      0
-      (arithmetic-shift 1 shift)))
-
-(define (%provided-value v default)
-  (if (eq? v '())
-      default
-      v))
-
-(%eval-when-load
-	(define (%make-provided-mask args)
-		(let loop ((args args)
-							 (idx 0)
-							 (acc '()))
-			(if (pair? args)
-					(let ((arg (car args)))
-						(loop (cdr args)
-									(+ idx 1)
-									(cons `(%provided-mask ,(car arg) ,idx) acc)))
-					acc))))
-
-(%eval-when-load
-	(define (%get-default-value arg)
-		(if (null? (cddr arg))
-				(case (cadr arg)
-					((int unsigned-long unsigned-int Bool long) 0)
-					((Window Pixmap Cursor Colormap) '+x-none+)
-					(else (error (string-append "Cannot determine default type for "
-																			(object->string (cadr arg))))))
-				(caddr arg))))
-
-(define-macro (%define/x-setter name args key-args type c-body)
-  (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
-        (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
-        (mask-var (gensym)))
-    `(define (,name ,@(map car args) #!key ,@lambda-key-args)
-       (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
-         ((c-lambda ,types ,type ,c-body)
-          ,@(map car args)
-          ,mask-var
-          ,@(map (lambda (a)
-                   `(%provided-value ,(car a) ,(%get-default-value a)))
-                 key-args))))))
+(define x-raise-window
+  (c-lambda (Display* Window)
+            int
+            "XRaiseWindow"))
 
 (%define/x-setter x-configure-window
-									((display Display*)
-									 (window Window))
-									((x int)
-									 (y int)
-									 (width int)
-									 (height int)
-									 (border-width int)
-									 (sibling Window)
-									 (stack-mode int))
-									int
-									"								
-									XWindowChanges wc;
-									wc.x = ___arg4;
-									wc.y = ___arg5;
-									wc.width = ___arg6;
-									wc.height = ___arg7;
-									wc.border_width = ___arg8;
-									wc.sibling = ___arg9;
-									wc.stack_mode = ___arg10;
-									___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
-									")
+                  ((display Display*)
+                   (window Window))
+                  ((x int)
+                   (y int)
+                   (width int)
+                   (height int)
+                   (border-width int)
+                   (sibling Window)
+                   (stack-mode int))
+                  int
+                  "
+                  XWindowChanges wc;
+                  wc.x = ___arg4;
+                  wc.y = ___arg5;
+                  wc.width = ___arg6;
+                  wc.height = ___arg7;
+                  wc.border_width = ___arg8;
+                  wc.sibling = ___arg9;
+                  wc.stack_mode = ___arg10;
+                  ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
+                  ")
 
 (%define/x-setter x-change-window-attributes
-									((display Display*)
-									 (window Window))
-									((background-pixmap Pixmap)
-									 (background-pixel unsigned-long)
-									 (border-pixmap Pixmap)
-									 (border-pixel unsigned-long)
-									 (bit-gravity int)
-									 (win-gravity int)
-									 (backing-store int)
-									 (backing-planes unsigned-long)
-									 (backing-pixel unsigned-long)
-									 (save-under Bool)
-									 (event-mask long)
-									 (do-not-propagate-mask long)
-									 (override-redirect Bool)
-									 (colormap Colormap)
-									 (cursor Cursor))
-									int
-									"
-									XSetWindowAttributes wa;
-									wa.background_pixmap = ___arg4;
-									wa.background_pixel = ___arg5;
-									wa.border_pixmap = ___arg6;
-									wa.border_pixel = ___arg7;
-									wa.bit_gravity = ___arg8;
-									wa.win_gravity = ___arg9;
-									wa.backing_store = ___arg10;
-									wa.backing_planes = ___arg11;
-									wa.backing_pixel = ___arg12;
-									wa.save_under = ___arg13;
-									wa.event_mask = ___arg14;
-									wa.do_not_propagate_mask = ___arg15;
-									wa.override_redirect = ___arg16;
-									wa.colormap = ___arg17;
-									wa.cursor = ___arg18;
-									___result = XChangeWindowAttributes(___arg1,
-																											 ___arg2,
-																											 ___arg3,
-																											 &wa);
-									")
+                  ((display Display*)
+                   (window Window))
+                  ((background-pixmap Pixmap)
+                   (background-pixel unsigned-long)
+                   (border-pixmap Pixmap)
+                   (border-pixel unsigned-long)
+                   (bit-gravity int)
+                   (win-gravity int)
+                   (backing-store int)
+                   (backing-planes unsigned-long)
+                   (backing-pixel unsigned-long)
+                   (save-under Bool)
+                   (event-mask long)
+                   (do-not-propagate-mask long)
+                   (override-redirect Bool)
+                   (colormap Colormap)
+                   (cursor Cursor))
+                  int
+                  "
+                  XSetWindowAttributes wa;
+                  wa.background_pixmap = ___arg4;
+                  wa.background_pixel = ___arg5;
+                  wa.border_pixmap = ___arg6;
+                  wa.border_pixel = ___arg7;
+                  wa.bit_gravity = ___arg8;
+                  wa.win_gravity = ___arg9;
+                  wa.backing_store = ___arg10;
+                  wa.backing_planes = ___arg11;
+                  wa.backing_pixel = ___arg12;
+                  wa.save_under = ___arg13;
+                  wa.event_mask = ___arg14;
+                  wa.do_not_propagate_mask = ___arg15;
+                  wa.override_redirect = ___arg16;
+                  wa.colormap = ___arg17;
+                  wa.cursor = ___arg18;
+                  ___result = XChangeWindowAttributes(___arg1,
+                                                      ___arg2,
+                                                      ___arg3,
+                                                      &wa);
+                  ")
 
 (define (wait-x11-event x11-display)
   (let* ((x11-display-fd (x-connection-number x11-display))
