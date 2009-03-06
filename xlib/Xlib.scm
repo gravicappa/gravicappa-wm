@@ -57,7 +57,7 @@
     (if (null? (cddr arg))
         (case (cadr arg)
           ((int unsigned-long unsigned-int Bool long) 0)
-          ((Window Pixmap Cursor Colormap) '+x-none+)
+          ((Window Pixmap Cursor Colormap) '+none+)
           (else (error (string-append "Cannot determine default type for "
                                       (object->string (cadr arg))))))
         (caddr arg))))
@@ -414,13 +414,13 @@ end-of-c-declare
      XGCValues*/release-rc
      "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XGCValues));")))
 
-(%define/x-const +x-none+ unsigned-long "None")
+(%define/x-const +none+ unsigned-long "None")
 (%define/x-const +p-base-size+ unsigned-long "PBaseSize")
 (%define/x-const +p-min-size+ unsigned-long "PMinSize")
 (%define/x-const +p-max-size+ unsigned-long "PMaxSize")
 (%define/x-const +p-resize-inc+ unsigned-long "PResizeInc")
 (%define/x-const +p-aspect+ unsigned-long "PAspect")
-(%define/x-const +x-normal-state+ unsigned-long "NormalState")
+(%define/x-const +normal-state+ unsigned-long "NormalState")
 (%define/x-const x-gc-function unsigned-long "GCFunction")
 (%define/x-const x-gc-plane-mask unsigned-long "GCPlaneMask")
 (%define/x-const x-gc-foreground unsigned-long "GCForeground")
@@ -494,6 +494,7 @@ end-of-c-declare
             int
             "___result = ___arg1->descent;"))
 
+(%define/x-const +mapping-keyboard+ int "MappingKeyboard")
 (%define/x-const no-event-mask long "NoEventMask")
 (%define/x-const key-press-mask long "KeyPressMask")
 (%define/x-const key-release-mask long "KeyReleaseMask")
@@ -555,6 +556,18 @@ end-of-c-declare
 (%define/x-const mapping-notify long "MappingNotify")
 (%define/x-const x-cw-event-mask long "CWEventMask")
 (%define/x-const x-cw-cursor long "CWCursor")
+(%define/x-const +cw-x+ int "CWX")
+(%define/x-const +cw-y+ int "CWY")
+(%define/x-const +cw-width+ int "CWWidth")
+(%define/x-const +cw-height+ int "CWHeight")
+(%define/x-const +cw-border-width+ int "CWBorderWidth")
+(%define/x-const +cw-sibling+ int "CWSibling")
+(%define/x-const +cw-stack-mode+ int "CWStackMode")
+
+(define x-refresh-keyboard-mapping
+  (c-lambda (XEvent*)
+            int
+            "XRefreshKeyboardMapping"))
 
 (define x-pending
   (c-lambda (Display*)     ;; display
