@@ -738,10 +738,15 @@ end-of-c-lambda
                                                       &wa);
                   ")
 
-(define (wait-x11-event x11-display)
+(define (call-with-x11-events x11-display fn)
   (let* ((x11-display-fd (x-connection-number x11-display))
          (x11-display-port (##open-predefined 1
                                               '(X11-display)
                                               x11-display-fd)))
-    (##device-port-wait-for-input! x11-display-port)))
+    (let loop ()
+      (##device-port-wait-for-input! x11-display-port)
+      (if (fn)
+          (loop)
+          #f))))
+;;;============================================================================
 ;;;============================================================================
