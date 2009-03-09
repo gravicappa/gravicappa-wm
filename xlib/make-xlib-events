@@ -40,7 +40,8 @@ make_event_accessor() {
 	case "$type" in 
 		*'['*) return ;;
 		*'*') result='___result_voidstar' ;;
-		Bool) accessor="${accessor}?" ;;
+		Bool) accessor="${accessor}?" 
+		      type='bool';;
 	esac
 
 	cat << ! | expand -t2 
@@ -64,7 +65,7 @@ make_event_accessors() {
 	ev="$1"
 	field="`get_event_field $ev`"
 	name=`get_struct_name $ev`
-	for f in `get_event_fields $name`; do
+	for f in `get_struct_fields $name`; do
 		make_event_accessor "$ev" "$field" "$f"
 	done
 }

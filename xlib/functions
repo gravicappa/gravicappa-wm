@@ -3,13 +3,19 @@
 tags=
 
 create_tags() {
-	if [ ! "$1" = "-n" ] ; then
+	if [ "$1" = "-n" ] ; then
+		tags=./tags
+		shift
+	else
 		tags=`mktemp ./tagsXXXX`
 		trap "rm \"$tags\"; exit 0" 0 2 3 15
-	else
-		tags=./tags
 	fi
-	ctags -f "$tags" --sort=no '/usr/include/X11/Xlib.h' '/usr/include/X11/Xutil.h'
+	if [ -z "$1" ] ; then
+		files='/usr/include/X11/Xlib.h /usr/include/X11/Xutil.h'
+  else
+		files="$1"
+	fi
+	ctags -f "$tags" --sort=no $files
 }
 
 rm_tags() {
@@ -39,10 +45,17 @@ get_field_type() {
 }
 
 lisp_name() {
-	echo $1 | sed 's/[A-Z]/-&/g;s/_/-/g' \
-	| sed 's/\(\w\)-\([A-Z]\)-\([A-Z]\)-/\1-\2\3-/g' \
+	echo $1 | sed 's/[A-Z][a-z]/-&/g;s/_/-/g' \
 	| sed 's/^-//' | sed 's/-\+-/-/g' | tr A-Z a-z
 }
+	#| sed 's/\(\w\)-\([A-Z]\)-\([A-Z]\)-/\1-\2\3-/g' \
+
+#lisp_name LSBFirst
+#lisp_name KBBellPitch
+#lisp_name DoRed
+#lisp_name XYBitmap
+#lisp_name GCTileStipple
+#exit
 
 #create_tags
 #get_field_type `get_struct_name XAnyEvent` serial

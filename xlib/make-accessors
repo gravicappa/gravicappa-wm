@@ -19,7 +19,8 @@ make_struct_accessor() {
 	case "$type" in 
 		*[*) return ;;
 		*'*') local result='___result_voidstar' ;;
-		Bool) accessor="${accessor}?" ;;
+		Bool) accessor="${accessor}?" 
+		      type='bool';;
 	esac
 
 	cat << ! | expand -t2 

@@ -130,11 +130,11 @@
 
 (define x-window-attributes-save-under?
   (c-lambda (XWindowAttributes*)
-            Bool
+            bool
             "___result = ___arg1->save_under;"))
 
 (define x-window-attributes-save-under?-set!
-  (c-lambda (XWindowAttributes* Bool)
+  (c-lambda (XWindowAttributes* bool)
             void
             "___arg1->save_under = ___arg2;"))
 
@@ -150,11 +150,11 @@
 
 (define x-window-attributes-map-installed?
   (c-lambda (XWindowAttributes*)
-            Bool
+            bool
             "___result = ___arg1->map_installed;"))
 
 (define x-window-attributes-map-installed?-set!
-  (c-lambda (XWindowAttributes* Bool)
+  (c-lambda (XWindowAttributes* bool)
             void
             "___arg1->map_installed = ___arg2;"))
 
@@ -200,11 +200,11 @@
 
 (define x-window-attributes-override-redirect?
   (c-lambda (XWindowAttributes*)
-            Bool
+            bool
             "___result = ___arg1->override_redirect;"))
 
 (define x-window-attributes-override-redirect?-set!
-  (c-lambda (XWindowAttributes* Bool)
+  (c-lambda (XWindowAttributes* bool)
             void
             "___arg1->override_redirect = ___arg2;"))
 
@@ -408,232 +408,232 @@
             void
             "___arg1->pad = ___arg2;"))
 
-(define x-gc-values-function
+(define xgc-values-function
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->function;"))
 
-(define x-gc-values-function-set!
+(define xgc-values-function-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->function = ___arg2;"))
 
-(define x-gc-values-plane-mask
+(define xgc-values-plane-mask
   (c-lambda (XGCValues*)
             unsigned-long
             "___result = ___arg1->plane_mask;"))
 
-(define x-gc-values-plane-mask-set!
+(define xgc-values-plane-mask-set!
   (c-lambda (XGCValues* unsigned-long)
             void
             "___arg1->plane_mask = ___arg2;"))
 
-(define x-gc-values-foreground
+(define xgc-values-foreground
   (c-lambda (XGCValues*)
             unsigned-long
             "___result = ___arg1->foreground;"))
 
-(define x-gc-values-foreground-set!
+(define xgc-values-foreground-set!
   (c-lambda (XGCValues* unsigned-long)
             void
             "___arg1->foreground = ___arg2;"))
 
-(define x-gc-values-background
+(define xgc-values-background
   (c-lambda (XGCValues*)
             unsigned-long
             "___result = ___arg1->background;"))
 
-(define x-gc-values-background-set!
+(define xgc-values-background-set!
   (c-lambda (XGCValues* unsigned-long)
             void
             "___arg1->background = ___arg2;"))
 
-(define x-gc-values-line-width
+(define xgc-values-line-width
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->line_width;"))
 
-(define x-gc-values-line-width-set!
+(define xgc-values-line-width-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->line_width = ___arg2;"))
 
-(define x-gc-values-line-style
+(define xgc-values-line-style
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->line_style;"))
 
-(define x-gc-values-line-style-set!
+(define xgc-values-line-style-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->line_style = ___arg2;"))
 
-(define x-gc-values-cap-style
+(define xgc-values-cap-style
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->cap_style;"))
 
-(define x-gc-values-cap-style-set!
+(define xgc-values-cap-style-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->cap_style = ___arg2;"))
 
-(define x-gc-values-join-style
+(define xgc-values-join-style
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->join_style;"))
 
-(define x-gc-values-join-style-set!
+(define xgc-values-join-style-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->join_style = ___arg2;"))
 
-(define x-gc-values-fill-style
+(define xgc-values-fill-style
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->fill_style;"))
 
-(define x-gc-values-fill-style-set!
+(define xgc-values-fill-style-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->fill_style = ___arg2;"))
 
-(define x-gc-values-fill-rule
+(define xgc-values-fill-rule
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->fill_rule;"))
 
-(define x-gc-values-fill-rule-set!
+(define xgc-values-fill-rule-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->fill_rule = ___arg2;"))
 
-(define x-gc-values-arc-mode
+(define xgc-values-arc-mode
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->arc_mode;"))
 
-(define x-gc-values-arc-mode-set!
+(define xgc-values-arc-mode-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->arc_mode = ___arg2;"))
 
-(define x-gc-values-tile
+(define xgc-values-tile
   (c-lambda (XGCValues*)
             Pixmap
             "___result = ___arg1->tile;"))
 
-(define x-gc-values-tile-set!
+(define xgc-values-tile-set!
   (c-lambda (XGCValues* Pixmap)
             void
             "___arg1->tile = ___arg2;"))
 
-(define x-gc-values-stipple
+(define xgc-values-stipple
   (c-lambda (XGCValues*)
             Pixmap
             "___result = ___arg1->stipple;"))
 
-(define x-gc-values-stipple-set!
+(define xgc-values-stipple-set!
   (c-lambda (XGCValues* Pixmap)
             void
             "___arg1->stipple = ___arg2;"))
 
-(define x-gc-values-ts-x-origin
+(define xgc-values-ts-x-origin
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->ts_x_origin;"))
 
-(define x-gc-values-ts-x-origin-set!
+(define xgc-values-ts-x-origin-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->ts_x_origin = ___arg2;"))
 
-(define x-gc-values-ts-y-origin
+(define xgc-values-ts-y-origin
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->ts_y_origin;"))
 
-(define x-gc-values-ts-y-origin-set!
+(define xgc-values-ts-y-origin-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->ts_y_origin = ___arg2;"))
 
-(define x-gc-values-font
+(define xgc-values-font
   (c-lambda (XGCValues*)
             Font
             "___result = ___arg1->font;"))
 
-(define x-gc-values-font-set!
+(define xgc-values-font-set!
   (c-lambda (XGCValues* Font)
             void
             "___arg1->font = ___arg2;"))
 
-(define x-gc-values-subwindow-mode
+(define xgc-values-subwindow-mode
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->subwindow_mode;"))
 
-(define x-gc-values-subwindow-mode-set!
+(define xgc-values-subwindow-mode-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->subwindow_mode = ___arg2;"))
 
-(define x-gc-values-graphics-exposures?
+(define xgc-values-graphics-exposures?
   (c-lambda (XGCValues*)
-            Bool
+            bool
             "___result = ___arg1->graphics_exposures;"))
 
-(define x-gc-values-graphics-exposures?-set!
-  (c-lambda (XGCValues* Bool)
+(define xgc-values-graphics-exposures?-set!
+  (c-lambda (XGCValues* bool)
             void
             "___arg1->graphics_exposures = ___arg2;"))
 
-(define x-gc-values-clip-x-origin
+(define xgc-values-clip-x-origin
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->clip_x_origin;"))
 
-(define x-gc-values-clip-x-origin-set!
+(define xgc-values-clip-x-origin-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->clip_x_origin = ___arg2;"))
 
-(define x-gc-values-clip-y-origin
+(define xgc-values-clip-y-origin
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->clip_y_origin;"))
 
-(define x-gc-values-clip-y-origin-set!
+(define xgc-values-clip-y-origin-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->clip_y_origin = ___arg2;"))
 
-(define x-gc-values-clip-mask
+(define xgc-values-clip-mask
   (c-lambda (XGCValues*)
             Pixmap
             "___result = ___arg1->clip_mask;"))
 
-(define x-gc-values-clip-mask-set!
+(define xgc-values-clip-mask-set!
   (c-lambda (XGCValues* Pixmap)
             void
             "___arg1->clip_mask = ___arg2;"))
 
-(define x-gc-values-dash-offset
+(define xgc-values-dash-offset
   (c-lambda (XGCValues*)
             int
             "___result = ___arg1->dash_offset;"))
 
-(define x-gc-values-dash-offset-set!
+(define xgc-values-dash-offset-set!
   (c-lambda (XGCValues* int)
             void
             "___arg1->dash_offset = ___arg2;"))
 
-(define x-gc-values-dashes
+(define xgc-values-dashes
   (c-lambda (XGCValues*)
             char
             "___result = ___arg1->dashes;"))
 
-(define x-gc-values-dashes-set!
+(define xgc-values-dashes-set!
   (c-lambda (XGCValues* char)
             void
             "___arg1->dashes = ___arg2;"))
