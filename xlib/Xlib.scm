@@ -95,7 +95,6 @@
   `(define ,name
      ((c-lambda () ,type ,(string-append "___result = " c-name ";")))))
 
-
 (define-macro (%define/x-setter name args key-args type c-body)
   (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
         (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
@@ -127,6 +126,9 @@
 (c-declare "
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/Xproto.h>
+#include <X11/keysym.h>
 ")
 
 ;; Declare a few types so that the function prototypes use the same
@@ -178,6 +180,7 @@ end-of-c-declare
 
 (%define/x-object "XGCValues" "release-rc")
 (%define/x-object "XEvent" "release-rc")
+(%define/x-object "XErrorEvent" "release-rc")
 (%define/x-object "XColor" "release-rc")
 (%define/x-object "Visual" "XFree")
 (%define/x-object "Screen" "XFree")
@@ -186,8 +189,54 @@ end-of-c-declare
 (%define/x-object "XWindowAttributes" "release-rc")
 (%define/x-object "XSizeHints" "release-rc")
 
+(include "Xlib-constants#.scm")
 (include "Xlib-events#.scm")
 (include "Xlib-accessors#.scm")
+
+;(c-declare 
+;  "static int (*x11_error_handler)(Display *, XErrorEvent *);")
+;
+;(c-define (scheme-x-error-handler display ev) 
+;          (Display* XErrorEvent*)
+;          int
+;          "scheme_x_error_handler" 
+;          "" 
+;          (begin
+;            (if ((cdr error-handler) display ev)
+;                #f
+;                ((c-lambda () void "x11_error_handler")
+;                )))
+;
+;(c-initialize
+;  "x11_error_handler = XSetErrorHandler(scheme_x_error_handler);")
+
+(define (default-error-handler display ev)
+  (let ((request-code (char->integer (x-error-event-request-code ev)))
+        (error-code (char->integer (x-error-event-error-code ev))))
+    (error (string-append "Xlib: error request-code:" 
+                          (number->string request-code)
+                          " error-code: "
+                          (number->string error-code)))))
+
+(define error-handler (cons #f default-error-handler))
+
+(c-define (scheme-x-error-handler display ev) 
+          (Display* XEvent*)
+          int
+          "scheme_x_error_handler"
+          ""
+          ((cdr error-handler) display ev)
+          0)
+
+(define x-set-error-handler 
+  (c-lambda ((function (Display* XEvent*) int))
+            (pointer "void")
+            "XSetErrorHandler"))
+
+(define (set-x-error-handler! fn)
+  (set-cdr! error-handler fn)
+  (x-set-error-handler scheme-x-error-handler)
+  (void))
 
 (define x-size-hints-min-aspect-x
   (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.x;"))
@@ -210,6 +259,16 @@ end-of-c-declare
   (c-lambda (Display*)     ;; display
             int
             "XCloseDisplay"))
+
+(define x-grab-server
+  (c-lambda (Display*)
+            int
+            "XGrabServer"))
+
+(define x-ungrab-server
+  (c-lambda (Display*)
+            int
+            "XUngrabServer"))
 
 (define x-display-width
   (c-lambda (Display* int)
@@ -234,7 +293,7 @@ end-of-c-declare
 (define x-screen-of-display
   (c-lambda (Display*      ;; display
              int)          ;; screen_number
-            Screen*/XFree
+            Screen*
             "XScreenOfDisplay"))
 
 (define x-default-colormap-of-screen
@@ -338,6 +397,21 @@ end-of-c-declare
             int
             "XSync"))
 
+(define x-grab-key
+  (c-lambda (Display* int unsigned-int Window Bool int int)
+            int
+            "XGrabKey"))
+
+(define x-ungrab-key
+  (c-lambda (Display* int unsigned-int Window)
+            int
+            "XUngrabKey"))
+
+(define x-ungrab-button
+  (c-lambda (Display* int unsigned-int Window)
+            int
+            "XUngrabButton"))
+
 (define x-create-gc
   (c-lambda (Display*       ;; display
              Drawable       ;; d
@@ -414,36 +488,10 @@ end-of-c-declare
      XGCValues*/release-rc
      "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XGCValues));")))
 
-(%define/x-const +none+ unsigned-long "None")
-(%define/x-const +p-base-size+ unsigned-long "PBaseSize")
-(%define/x-const +p-min-size+ unsigned-long "PMinSize")
-(%define/x-const +p-max-size+ unsigned-long "PMaxSize")
-(%define/x-const +p-resize-inc+ unsigned-long "PResizeInc")
-(%define/x-const +p-aspect+ unsigned-long "PAspect")
-(%define/x-const +normal-state+ unsigned-long "NormalState")
-(%define/x-const x-gc-function unsigned-long "GCFunction")
-(%define/x-const x-gc-plane-mask unsigned-long "GCPlaneMask")
-(%define/x-const x-gc-foreground unsigned-long "GCForeground")
-(%define/x-const x-gc-background unsigned-long "GCBackground")
-(%define/x-const x-gc-line-width unsigned-long "GCLineWidth")
-(%define/x-const x-gc-line-style unsigned-long "GCLineStyle")
-(%define/x-const x-gc-cap-style unsigned-long "GCCapStyle")
-(%define/x-const x-gc-join-style unsigned-long "GCJoinStyle")
-(%define/x-const x-gc-fill-style unsigned-long "GCFillStyle")
-(%define/x-const x-gc-fill-rule unsigned-long "GCFillRule")
-(%define/x-const x-gc-tile unsigned-long "GCTile")
-(%define/x-const x-gc-stipple unsigned-long "GCStipple")
-(%define/x-const x-gc-tile-stip-x-origin unsigned-long "GCTileStipXOrigin")
-(%define/x-const x-gc-tile-stip-y-origin unsigned-long "GCTileStipYOrigin")
-(%define/x-const x-gc-font unsigned-long "GCFont")
-(%define/x-const x-gc-subwindow-mode unsigned-long "GCSubwindowMode")
-(%define/x-const x-gc-graphics-exposures unsigned-long "GCGraphicsExposures")
-(%define/x-const x-gc-clip-x-origin unsigned-long "GCClipXOrigin")
-(%define/x-const x-gc-clip-y-origin unsigned-long "GCClipYOrigin")
-(%define/x-const x-gc-clip-mask unsigned-long "GCClipMask")
-(%define/x-const x-gc-dash-offset unsigned-long "GCDashOffset")
-(%define/x-const x-gc-dash-list unsigned-long "GCDashList")
-(%define/x-const x-gc-arc-mode unsigned-long "GCArcMode")
+(define x-set-input-focus
+  (c-lambda (Display* Window int Time)
+            int
+            "XSetInputFocus"))
 
 (define x-change-gc
   (c-lambda (Display*       ;; display
@@ -494,76 +542,6 @@ end-of-c-declare
             int
             "___result = ___arg1->descent;"))
 
-(%define/x-const +mapping-keyboard+ int "MappingKeyboard")
-(%define/x-const no-event-mask long "NoEventMask")
-(%define/x-const key-press-mask long "KeyPressMask")
-(%define/x-const key-release-mask long "KeyReleaseMask")
-(%define/x-const button-press-mask long "ButtonPressMask")
-(%define/x-const button-release-mask long "ButtonReleaseMask")
-(%define/x-const enter-window-mask long "EnterWindowMask")
-(%define/x-const leave-window-mask long "LeaveWindowMask")
-(%define/x-const pointer-motion-mask long "PointerMotionMask")
-(%define/x-const pointer-motion-hint-mask long "PointerMotionHintMask")
-(%define/x-const button1-motion-mask long "Button1MotionMask")
-(%define/x-const button2-motion-mask long "Button2MotionMask")
-(%define/x-const button3-motion-mask long "Button3MotionMask")
-(%define/x-const button4-motion-mask long "Button4MotionMask")
-(%define/x-const button5-motion-mask long "Button5MotionMask")
-(%define/x-const button-motion-mask long "ButtonMotionMask")
-(%define/x-const keymap-state-mask long "KeymapStateMask")
-(%define/x-const exposure-mask long "ExposureMask")
-(%define/x-const visibility-change-mask long "VisibilityChangeMask")
-(%define/x-const structure-notify-mask long "StructureNotifyMask")
-(%define/x-const resize-redirect-mask long "ResizeRedirectMask")
-(%define/x-const substructure-notify-mask long "SubstructureNotifyMask")
-(%define/x-const substructure-redirect-mask long "SubstructureRedirectMask")
-(%define/x-const focus-change-mask long "FocusChangeMask")
-(%define/x-const property-change-mask long "PropertyChangeMask")
-(%define/x-const colormap-change-mask long "ColormapChangeMask")
-(%define/x-const owner-grab-button-mask long "OwnerGrabButtonMask")
-(%define/x-const key-press long "KeyPress")
-(%define/x-const key-release long "KeyRelease")
-(%define/x-const button-press long "ButtonPress")
-(%define/x-const button-release long "ButtonRelease")
-(%define/x-const motion-notify long "MotionNotify")
-(%define/x-const enter-notify long "EnterNotify")
-(%define/x-const leave-notify long "LeaveNotify")
-(%define/x-const focus-in long "FocusIn")
-(%define/x-const focus-out long "FocusOut")
-(%define/x-const keymap-notify long "KeymapNotify")
-(%define/x-const expose long "Expose")
-(%define/x-const graphics-expose long "GraphicsExpose")
-(%define/x-const no-expose long "NoExpose")
-(%define/x-const visibility-notify long "VisibilityNotify")
-(%define/x-const create-notify long "CreateNotify")
-(%define/x-const destroy-notify long "DestroyNotify")
-(%define/x-const unmap-notify long "UnmapNotify")
-(%define/x-const map-notify long "MapNotify")
-(%define/x-const map-request long "MapRequest")
-(%define/x-const reparent-notify long "ReparentNotify")
-(%define/x-const configure-notify long "ConfigureNotify")
-(%define/x-const configure-request long "ConfigureRequest")
-(%define/x-const gravity-notify long "GravityNotify")
-(%define/x-const resize-request long "ResizeRequest")
-(%define/x-const circulate-notify long "CirculateNotify")
-(%define/x-const circulate-request long "CirculateRequest")
-(%define/x-const property-notify long "PropertyNotify")
-(%define/x-const selection-clear long "SelectionClear")
-(%define/x-const selection-request long "SelectionRequest")
-(%define/x-const selection-notify long "SelectionNotify")
-(%define/x-const colormap-notify long "ColormapNotify")
-(%define/x-const client-message long "ClientMessage")
-(%define/x-const mapping-notify long "MappingNotify")
-(%define/x-const x-cw-event-mask long "CWEventMask")
-(%define/x-const x-cw-cursor long "CWCursor")
-(%define/x-const +cw-x+ int "CWX")
-(%define/x-const +cw-y+ int "CWY")
-(%define/x-const +cw-width+ int "CWWidth")
-(%define/x-const +cw-height+ int "CWHeight")
-(%define/x-const +cw-border-width+ int "CWBorderWidth")
-(%define/x-const +cw-sibling+ int "CWSibling")
-(%define/x-const +cw-stack-mode+ int "CWStackMode")
-
 (define x-refresh-keyboard-mapping
   (c-lambda (XEvent*)
             int
@@ -583,7 +561,7 @@ end-of-c-declare
             XEvent* pev;
             if (XCheckMaskEvent (___arg1, ___arg2, &ev))
             {
-              pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
+              pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof (ev)));
               *pev = ev;
             }
             else
@@ -598,7 +576,7 @@ end-of-c-declare
             XEvent ev;
             XEvent* pev;
             XNextEvent(___arg1, &ev);
-            pev = ___CAST(XEvent*,___EXT(___alloc_rc) (sizeof (ev)));
+            pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof (ev)));
             *pev = ev;
             ___result_voidstar = pev;
             "
@@ -614,7 +592,7 @@ end-of-c-declare
 (define (make-x-event-box)
   ((c-lambda ()
              XEvent*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XEvent));")))
+             "___result_voidstar = ___EXT(___alloc_rc)(sizeof (XEvent));")))
 
 (define x-send-event
   (c-lambda (Display* Window Bool long XEvent*)
@@ -637,15 +615,20 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(%define/x-pstruct-getter
-  x-get-window-attributes (Display* Window) "XWindowAttributes"
-  "XGetWindowAttributes(___arg1, ___arg2, &data);")
+(%define/x-pstruct-getter x-get-window-attributes 
+                          (Display* Window) 
+                          "XWindowAttributes"
+                          "XGetWindowAttributes(___arg1, ___arg2, &data);")
 
-(%define/x-pstruct-getter
-  x-get-wm-normal-hints (Display* Window) "XSizeHints"
-  "long msize;
-   if(!XGetWMNormalHints(___arg1, ___arg2, &data, &msize))
-     data.flags = PSize;")
+(%define/x-pstruct-getter x-get-wm-normal-hints 
+                          (Display* Window) 
+                          "XSizeHints"
+                          "long msize;
+                          if(!XGetWMNormalHints(___arg1, 
+                                                ___arg2, 
+                                                &data, 
+                                                &msize))
+                          data.flags = PSize;")
 
 (define x-window-state-set!
   (c-lambda (Display* Window Atom long)
@@ -725,10 +708,10 @@ end-of-c-lambda
                    (backing-store int)
                    (backing-planes unsigned-long)
                    (backing-pixel unsigned-long)
+                   (override-redirect Bool)
                    (save-under Bool)
                    (event-mask long)
                    (do-not-propagate-mask long)
-                   (override-redirect Bool)
                    (colormap Colormap)
                    (cursor Cursor))
                   int
@@ -743,10 +726,10 @@ end-of-c-lambda
                   wa.backing_store = ___arg10;
                   wa.backing_planes = ___arg11;
                   wa.backing_pixel = ___arg12;
-                  wa.save_under = ___arg13;
-                  wa.event_mask = ___arg14;
-                  wa.do_not_propagate_mask = ___arg15;
-                  wa.override_redirect = ___arg16;
+                  wa.override_redirect = ___arg13;
+                  wa.save_under = ___arg14;
+                  wa.event_mask = ___arg15;
+                  wa.do_not_propagate_mask = ___arg16;
                   wa.colormap = ___arg17;
                   wa.cursor = ___arg18;
                   ___result = XChangeWindowAttributes(___arg1,
