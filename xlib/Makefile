@@ -1,3 +1,4 @@
+generated = Xlib-events\#.scm Xlib-accessors\#.scm Xlib-constants\#.scm
 LDFLAGS = -lX11
 GSCFLAGS= -ld-options "${LDFLAGS}"
 
@@ -12,10 +13,11 @@ clean-obj:
 	-rm *.o* 2> /dev/null
 
 clean-generated:
-	-rm 'Xlib-events#.scm' 'Xlib-accessors#.scm'
+	-rm ${generated}
 
 events: Xlib-events\#.scm
 accessors: Xlib-accessors\#.scm
+constants: Xlib-constants\#.scm
 
 Xlib-events\#.scm: /usr/include/X11/Xlib.h
 	./make-xlib-events > 'Xlib-events#.scm'
@@ -23,10 +25,12 @@ Xlib-events\#.scm: /usr/include/X11/Xlib.h
 Xlib-accessors\#.scm:	x-struct
 	./make-accessors < $< > $@
 
-Xlib\#.scm: Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm
-	cat Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm \
-		| ./make-gambit-include 'Xlib#' > $@
+Xlib-constants\#.scm:	
+	./make-constants > $@
 
-Xlib.o1: Xlib.scm Xlib-events\#.scm Xlib-accessors\#.scm Xlib\#.scm
+Xlib\#.scm: Xlib.scm ${generated}
+	cat Xlib.scm ${generated} | ./make-gambit-include 'Xlib#' > $@
+
+Xlib.o1: Xlib.scm ${generated} Xlib\#.scm
 	-rm Xlib.o* 2>/dev/null
 	gambit-gsc -ld-options "-lX11" Xlib.scm
