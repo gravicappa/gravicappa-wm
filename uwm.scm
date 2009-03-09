@@ -51,12 +51,15 @@
 
 (define (x11-event-hook xdisplay)
   (display-log "Waiting for x11 events.")
-  (wait-x11-event xdisplay)
-  (let loop ()
-    (display-log "Events count: " (x-pending xdisplay))
-    (when (positive? (x-pending xdisplay))
-      (handle-x11-event xdisplay (x-next-event xdisplay))
-      (loop))))
+  (call-with-x11-events
+    xdisplay
+    (lambda ()
+      (let loop ()
+        (display-log "Events count: " (x-pending xdisplay))
+        (when (positive? (x-pending xdisplay))
+          (handle-x11-event xdisplay (x-next-event xdisplay))
+          (loop)))
+      #t)))
 
 (define (x11-blocking-event-hook xdisplay)
   (let loop ()
@@ -64,8 +67,8 @@
     (handle-x11-event xdisplay (x-next-event xdisplay))
     (loop)))
 
-;(add-hook *internal-loop-hook* 'x11-event-hook)
-(add-hook *internal-loop-hook* 'x11-blocking-event-hook)
+(add-hook *internal-loop-hook* 'x11-event-hook)
+;(add-hook *internal-loop-hook* 'x11-blocking-event-hook)
 
 (define (main-loop xdisplay)
   (run-hook *internal-loop-hook* xdisplay)

@@ -1,5 +1,5 @@
-(define *frame-color-normal* #x665544)
-(define *frame-color-selected* #xffbb77)
+(define *frame-color-normal* #x331100)
+(define *frame-color-selected* #xff7755)
 (define *bar-height* 16)
 (define *tile-ratio* 1/2)
 
