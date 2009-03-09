@@ -1,5 +1,7 @@
 (define *x11-event-dispatcher* (make-table))
 
+(define +debug-events+ #t)
+
 (define (display-log . args)
   (display (cons ";; " args) (current-error-port))
   (newline (current-error-port)))
@@ -18,15 +20,6 @@
        #f
        (begin ,@body)))
 
-(define (run-hook hooks . args)
-  (let loop ((hooks hooks))
-    (cond ((pair? hooks)
-           (let ((fn (car hooks)))
-             (apply (cond ((procedure? fn) fn)
-                          ((symbol? fn) (eval fn)))
-                    args))
-           (loop (cdr hooks))))))
-
 (define (find item <list>)
   (if (pair? <list>)
       (if (eq? (car <list>) item)
@@ -34,21 +27,29 @@
           (find item (cdr <list>)))
       #f))
 
-(define-macro (add-to-list <list> item)
-  `(if (not (find ,item ,<list>))
-       (set! ,<list> (append ,<list> (list ,item)))))
+(define (add-to-list <list> item)
+  (if (not (find item <list>))
+      (set-cdr! <list> (append <list> (list item)))))
 
 (define-macro (push item <list>)
   `(set! <list> (cons ,item <list>)))
 
 (define-macro (define-hook name)
-  `(define ,name '()))
+  `(define ,name (list (lambda args #f))))
+
+(define (run-hook hook . args)
+  (for-each (lambda (hook) 
+              (apply (cond ((procedure? hook) hook)
+                           ((symbol? hook) (eval hook)))
+                     args))
+            hook))
+
+(define (add-hook hook fn)
+  (set-cdr! hook (append (cdr hook) (list fn))))
 
 (eval-when-load 
-  (define %any-events '(type display serial send-event window)))
-
-(define (complement fn)
-  (lambda args (not (apply fn args))))
+  (define (complement fn)
+    (lambda args (not (apply fn args)))))
 
 (eval-when-load
   (define (filter fn <list>)
@@ -72,37 +73,85 @@
   (define (find item <list>)
     (find-if (lambda (i) (eq? i item)) <list>)))
 
-(define (remove-if fn <list>)
-  (filter (complement fn) <list>))
+(eval-when-load
+  (define (remove-if fn <list>)
+    (filter (complement fn) <list>)))
+
+(define (remove item <list>)
+  (remove-if (lambda (i) (eq? i item)) <list>))
+
+(eval-when-load
+  (define event-struct-mapping 
+    (list->table '((mapping-notify . x-mapping-event)
+                   (destroy-notify . x-destroy-window-event)
+                   (unmap-notify . x-unmap-event)
+                   (property-notify . x-property-event)
+                   (configure-notify . x-configure-event)
+                   (focus-in . x-focus-change-event)
+                   (button-press . x-button-pressed-event)
+                   (key-press . x-key-event)
+                   (enter-notify . x-crossing-event)))))
+
+(eval-when-load
+  (define (struct-from-event event)
+    (let ((ev (table-ref event-struct-mapping event #f)))
+      (if ev
+          ev
+          (string->symbol (string-append "x-"
+                                         (symbol->string event)
+                                         "-event"))))))
 
 (eval-when-load
   (define (make-event-symbol type slot)
-    (string->symbol (string-append (symbol->string type) 
-                                   "-event-" 
+    (string->symbol (string-append (symbol->string type)
+                                   "-"
                                    (symbol->string slot)))))
 
 (define-macro (x-event-lambda event args . body)
-  (let ((any-slots (filter (lambda (slot) (find slot %any-events))
-                           args))
-        (slots (filter (lambda (slot) (not (or (find slot %any-events)
-                                               (eq? slot 'ev))))
-                       args))
-        (x-event (string->symbol (string-append "x-" (symbol->string event))))
+  (let ((slots (remove-if (lambda (slot) (eq? slot 'ev)) args))
+        (x-event (struct-from-event event))
         (ev (gensym)))
     `(lambda (,ev)
-       (let (,@(map (lambda (i)
-                      `(,i (,(make-event-symbol 'x-any i) ,ev)))
-                    any-slots)
-              ,@(map (lambda (i)
-                       `(,i (,(make-event-symbol x-event i) ,ev)))
-                     slots)
-              ,@(if (find 'ev args)
-                    `(ev ,ev)
-                    '()))
+       (let (,@(map (lambda (i) `(,i (,(make-event-symbol x-event i) ,ev)))
+                    slots)
+             ,@(if (find 'ev args)
+                   `((ev ,ev))
+                   '()))
+         (when +debug-events+
+           (display-log "[x11] event (id: " ',x-event ")\n" 
+                        "               (serial: " (x-any-event-serial ,ev) ")\n"
+                        "               (num: " 
+                        ,(string->symbol 
+                           (string-append "+" 
+                                          (symbol->string event) 
+                                          "+"))
+                        ")\n"
+                        "               (win: " (x-any-event-window ,ev) ")\n"
+                        "\n"))
          ,@body))))
 
-(define-macro (define-x-event event args . body)
+(define-macro (define-x-event args . body)
   `(table-set! *x11-event-dispatcher*
-               ,event
-               (x-event-lambda ,event ,args ,@body)))
+               ,(string->symbol 
+                  (string-append "+" (symbol->string (car args)) "+"))
+               (x-event-lambda ,(car args) ,(cdr args) ,@body)))
 
+(define (get-colour display screen color)
+  (let* ((cmap (x-default-colormap-of-screen 
+                 (x-screen-of-display display (screen-id screen))))
+         (c (make-x-color-box))
+         (component (lambda (mask shift) 
+                      (arithmetic-shift (bitwise-and color mask) shift)))
+         (ret (cond 
+                ((string? color)
+                 (= (x-parse-color display cmap color c) 1))
+                ((number? color)
+                 (x-color-red-set! c (component #xff0000 -8))
+                 (x-color-green-set! c (component #x00ff00 0))
+                 (x-color-blue-set! c (component #x0000ff 8))
+                 #t))))
+    (when (and ret (= (x-alloc-color display cmap c) 1))
+      (x-color-pixel c))))
+
+(define-macro (destructuring-bind args expr . body)
+  `(apply (lambda ,args ,@body) ,expr))

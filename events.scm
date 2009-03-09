@@ -3,64 +3,23 @@
 (define border-width 2)
 (define border-color #xffccaa)
 
-(define client-input-mask (bitwise-ior enter-window-mask
-                                       focus-change-mask
-                                       property-change-mask
-                                       structure-notify-mask))
+(define +wm-state+ #f)
 
-(define (make-client* window wa screen)
-  (let ((client (make-client)))
-    (client-screen-set! client screen)
-    (client-window-set! client window)
-    (client-x-set! client (x-window-attribute-x wa))
-    (client-y-set! client (x-window-attribute-y wa))
-    (client-w-set! client (x-window-attribute-width wa))
-    (client-h-set! client (x-window-attribute-height wa))
-    (client-old-border-set! client (x-window-attribute-border-width wa))))
+(add-hook *manage-hook*
+  (lambda (display window wa screen)
+    (manage-client display (make-client* window wa screen))))
 
-(define (manage-client display window wa screen)
-  (let ((c (make-client* window wa screen)))
-    (cond ((client-wants-fullscreen? c)
-           (fullscreen-client c))
-          (else
-            (client-border-set! c border-width)
-            (hold-client-on-screen c)))
-    (x-configure-window display window border-width: (client-border c))
-    ;(x-set-window-border display window border-color)
-    (configure-client c)
-    (update-size-hints! c)
-    (x-select-input display window client-input-mask)
-    ;(grabbuttons c #f)
-    ;(update-title! c)
-    ;(process-transient-for-hint! c)
-    (client-floating?-set! c (or (client-fixed? c) (client-fullscreen? c)))
-    ;(tag-client (list current-view) c)
-    (when (client-floating? c)
-      (x-raise-window display (client-window c)))
-    (screen-clients-set! screen (cons c (screen-clients screen)))
-    (screen-focus-stack-set! screen (cons c (screen-focus-stack-set! screen)))
-    (x-move-resize-client (client-window c)
-                          (+ (client-x c)
-                             (* 2 (screen-w screen)))
-                          (client-y c)
-                          (client-w c)
-                          (client-h c))
-    (x-map-window display (client-window c))
-    (x-window-state-set! display window +wm-state+ +normal-state+)
-    ;(arrange)
-    ))
-
-(define-x-event map-request (display window parent send-event?)
-  (display-log "[x11] map-request window: " window)
+(define-x-event (map-request display window parent send-event?)
 	(unless (or send-event? (client-from-window* window))
 		(let ((wa (x-get-window-attributes display window)))
-			(unless (x-window-attribute-override-redirect? wa)
-				(manage-window display window wa (find-screen parent))))))
+			(unless (x-window-attributes-override-redirect? wa)
+				(run-hook *manage-hook* display window wa (find-screen parent))))))
 
-(define-x-event mapping-notify (display window ev request)
+(define-x-event (mapping-notify display window ev request)
   (x-refresh-keyboard-mapping ev)
   (when (eq? request +mapping-keyboard+)
     ;(grab-keys display)
+    #f
     ))
 
 (define (handle-unmanaged-window display window x y width height border-width
@@ -72,15 +31,15 @@
                        '()))))
     (x-configure-window display
                         window
-                        x: (if-set +cw-x+ x)
-                        y: (if-set +cw-y+ y)
+                        x: (if-set +cwx+ x)
+                        y: (if-set +cwy+ y)
                         width: (if-set +cw-width+ width)
                         height: (if-set +cw-height+ height)
                         border-width: (if-set +cw-border-width+ border-width)
                         sibling: (if-set +cw-sibling+ above)
                         stack-mode: (if-set +cw-stack-mode+ detail))))
 
-(define-x-event configure-request (display window x y width height 
+(define-x-event (configure-request display window x y width height 
                                    border-width above value-mask detail)
   (let* ((c (client-from-window* window))
          (set? (lambda (flag) (not (zero? (bitwise-and flag value-mask)))))
@@ -88,19 +47,17 @@
                    (if (set? flag)
                        value
                        '()))))
-    (if (null? c)
-        (handle-unmanaged-window display window x y width height border-width
-                                 above value-mask detail)
+    (if c
         (let ((s (client-screen c)))
           (cond ((set? +cw-border-width+)
                  (client-border-set! c border-width))
                 ((client-floating? c)
-                 (if (set? +cw-x+)
+                 (if (set? +cwx+)
                      (client-x-set! c (+ (screen-x s) x)))
-                 (if (set? +cw-y+)
+                 (if (set? +cwy+)
                      (client-y-set! c (+ (screen-y s) y)))
                  (if (set? +cw-width+)
-                   (client-w-set! c width))
+                     (client-w-set! c width))
                  (if (set? +cw-height+)
                      (client-w-set! c height))
                  (maybe-center-client-on-screen c)
@@ -114,5 +71,54 @@
                                            (client-w c)
                                            (client-h c))))
                 (else
-                  (configure-client display c)))))
+                  (configure-client display c))))
+        (handle-unmanaged-window display window x y width height border-width
+                                 above value-mask detail))
     (x-sync display #f)))
+
+(define-x-event (destroy-notify display window)
+  (let ((c (client-from-window* window)))
+    (when c
+      (run-hook *unmanage-hook* display c))))
+
+(define-x-event (unmap-notify display window)
+  (let ((c (client-from-window* window)))
+    (when c
+      (run-hook *unmanage-hook* display c))))
+
+(define-x-event (property-notify display window atom state)
+  (unless (eq? state +property-delete+)
+    (let ((c (client-from-window* window)))
+      (case atom
+        ((+xa-wm-transient-for+) #f)
+        ((+xa-wm-normal-hints+) (update-size-hints! c))
+        ((+xa-wm-hints+) (update-wm-hints! c))
+        ((+xa-wm-name+) #f)))))
+
+(define-x-event (configure-notify display window x y width height)
+  (let ((s (find-screen window)))
+    (when (and s (not (and (eq? width (screen-w s)) 
+                           (eq? height (screen-h s)))))
+      (screen-w-set! s width)
+      (screen-h-set! s height)
+      (run-hook *arrange-hook* display))))
+
+(define-x-event (enter-notify display window mode detail)
+  (when (or (eq? mode +notify-normal+) 
+            (not (eq? detail +notify-inferior+))
+            (find-screen window))
+    (run-hook *focus-hook* display (client-from-window* window))))
+
+(define-x-event (focus-in display window)
+  (when (and *selected* (not (eq? window (client-window *selected*))))
+    (x-set-input-focus display 
+                       window 
+                       +revert-to-pointer-root+ 
+                       +current-time+)))
+
+(define-x-event (button-press display window button x y time)
+  ;(x-allow-events display +replay-pointer+ time)
+  (run-hook *focus-hook* display (client-from-window* window)))
+
+(define-x-event (key-press display code state)
+  #f)
