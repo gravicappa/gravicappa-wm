@@ -4,21 +4,20 @@
 (define *tile-ratio* 1/2)
 
 (define (update-visibility display screen)
-  ;; FIXME: recursion can be replaced with O(3) algorithm
   (let loop ((clients (screen-clients screen)))
     (when (pair? clients)
       (let ((c (car clients)))
-        (cond 
+        (cond
           ((client-visible? c)
            (x-move-window display (client-window c) (client-x c) (client-y c))
            (when (client-floating? c)
-             (resize-client 
+             (resize-client
                c (client-x c) (client-y c) (client-w c) (client-h c)))
            (loop (cdr clients)))
           (else
             (loop (cdr clients))
-            (x-move-window display 
-                           (client-window c) 
+            (x-move-window display
+                           (client-window c)
                            (+ (client-x c) (* 2 (screen-w screen)))
                            (client-y c))))))))
 
@@ -28,17 +27,17 @@
                (find-if client-visible? (screen-focus-stack s))
                client)))
     (when (and *selected* (not (eq? *selected* c)))
-      (x-set-window-border display 
-                           (client-window *selected*) 
+      (x-set-window-border display
+                           (client-window *selected*)
                            (get-colour display s *frame-color-normal*)))
     (cond (c (to-focus-stack-top c)
-             (x-set-window-border 
-               display 
+             (x-set-window-border
+               display
                (client-window c)
                (get-colour display s *frame-color-selected*))
-             (x-set-input-focus display 
-                                (client-window c) 
-                                +revert-to-pointer-root+ 
+             (x-set-input-focus display
+                                (client-window c)
+                                +revert-to-pointer-root+
                                 +current-time+))
           (else (x-set-input-focus display
                                    (screen-root s)
@@ -66,17 +65,22 @@
 (define (tile-client-rect display clients x y w h)
   (when (pair? clients)
     (let ((h (floor (/ h (length clients)))))
-      (for-each 
+      (for-each
         (lambda (c)
           (resize-client display c x y (no-border w c) (no-border h c))
           (set! y (+ y (client-h c) (* 2 (client-border c)))))
         clients))))
 
+(define (get-tile-ratio display)
+  (if (procedure? *tile-ratio*)
+      (*tile-ratio* display)
+      *tile-ratio*))
+
 (define (tile display screen)
-  (call-with-values 
+  (call-with-values
     (lambda () (managed-area screen))
     (lambda (sx sy sw sh)
-      (let ((zoom-width (* sw *tile-ratio*))
+      (let ((zoom-width (* sw (get-tile-ratio display)))
             (clients (filter client-tiled? (screen-clients screen))))
         (cond ((null? clients))
               ((null? (cdr clients))

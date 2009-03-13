@@ -1,8 +1,8 @@
 (include "xlib/Xlib#.scm")
 (include "utils.scm")
 
-(define *display* #f)
 (define *selected* #f)
+
 (define-hook *internal-startup-hook*)
 (define-hook *internal-loop-hook*)
 (define-hook *shutdown-hook*)
@@ -41,8 +41,24 @@
 (define (init-error-handler display)
   (set-x-error-handler! uwm-error-handler))
 
+(define (collect-windows display screen)
+  (let ((windows '()))
+    (x-query-tree display
+                  (screen-root screen)
+                  (lambda (w) (push w windows)))
+    (reverse windows)))
+
+(define (pickup-windows display)
+  (for-each
+    (lambda (screen)
+      (let ((wins (collect-windows display screen)))
+        (for-each (lambda (window) (pickup-window display screen window))
+                  wins)))
+    *screens*))
+
 (add-hook *internal-startup-hook* 'init-atoms)
 (add-hook *internal-startup-hook* 'init-error-handler)
+(add-hook *internal-startup-hook* 'pickup-windows)
 
 (define (handle-x11-event xdisplay ev)
   (let ((handler (table-ref *x11-event-dispatcher* (x-any-event-type ev) #f)))
@@ -61,36 +77,29 @@
           (loop)))
       #t)))
 
-(define (x11-blocking-event-hook xdisplay)
-  (let loop ()
-    (display-log "Waiting for x11 events.")
-    (handle-x11-event xdisplay (x-next-event xdisplay))
-    (loop)))
-
 (add-hook *internal-loop-hook* 'x11-event-hook)
-;(add-hook *internal-loop-hook* 'x11-blocking-event-hook)
 
 (define (main-loop xdisplay)
   (run-hook *internal-loop-hook* xdisplay)
   (main-loop xdisplay))
 
 (define (uwm . args)
-  (let ((xdisplay-name (if (and (pair? args) (string? (car args))) 
+  (let ((xdisplay-name (if (and (pair? args) (string? (car args)))
                            (car args)
-                           #f)))
-    (dynamic-wind 
-      (lambda () 
-        (set! *display* (x-open-display xdisplay-name))
-        (if (not *display*)
-            (error "Unable to open display"))
-        (run-hook *internal-startup-hook* *display*))
-      (lambda () 
-        (x-sync *display* #f)
-        (main-loop *display*))
+                           #f))
+        (display #f))
+    (dynamic-wind
       (lambda ()
-        (if *display*
-            (run-hook *shutdown-hook* *display*))
-        (set! *display* #f)))))
+        (set! display (x-open-display xdisplay-name))
+        (if (not display)
+            (error "Unable to open display"))
+        (run-hook *internal-startup-hook* display))
+      (lambda ()
+        (x-sync display #f)
+        (main-loop display))
+      (lambda ()
+        (if display
+            (run-hook *shutdown-hook* display))))))
 
 (define (get-option option args)
   (if (pair? args)

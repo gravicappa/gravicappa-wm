@@ -1,6 +1,6 @@
 (define-structure client
-  name window screen tags 
-  x y w h 
+  name window screen tags
+  x y w h
   border old-border
   fixed? urgent? fullscreen? floating?
   basew baseh incw inch maxw maxh minw minh mina maxa)
@@ -44,9 +44,9 @@
                          x))))
         (border (client-border c))
         (s (client-screen c)))
-    (client-x-set! 
+    (client-x-set!
       c (hold (client-x c) (client-w c) (screen-x s) (screen-w s) border))
-    (client-y-set! 
+    (client-y-set!
       c (hold (client-y c) (client-h c) (screen-y s) (screen-h s) border))))
 
 (define (maybe-center-client-on-screen c)
@@ -56,9 +56,9 @@
                       a1)))
         (s (client-screen c)))
     (when (client-floating? c)
-      (client-x-set! 
+      (client-x-set!
         c (center (client-x c) (client-w c) (screen-x s) (screen-w s)))
-      (client-y-set! 
+      (client-y-set!
         c (center (client-y c) (client-h c) (screen-y s) (screen-h s))))))
 
 (define (tag-client client tags)
@@ -148,6 +148,22 @@
     (client-old-border-set! c (x-window-attributes-border-width wa))
     c))
 
+(define (grab-buttons display c)
+  (x-ungrab-button display +any-button+ +any-modifier+ (client-window c))
+  (let loop ((i 1))
+    (x-grab-button display
+                   i
+                   +any-modifier+
+                   (client-window c)
+                   #f
+                   (bitwise-ior +button-press-mask+ +button-release-mask+)
+                   +grab-mode-async+
+                   +grab-mode-sync+
+                   +none+
+                   +none+)
+    (when (< i 32)
+      (loop (+ i 1)))))
+
 (define (manage-client display c)
   (let ((s (client-screen c)))
     (cond ((client-wants-fullscreen? c)
@@ -158,14 +174,14 @@
           (else
             (client-border-set! c border-width)
             (hold-client-on-screen c)))
-    (x-configure-window 
+    (x-configure-window
       display (client-window c) border-width: (client-border c))
-    (x-set-window-border 
+    (x-set-window-border
       display (client-window c) (get-colour display s *frame-color-normal*))
     (configure-client display c)
     (update-size-hints! display c)
     (x-select-input display (client-window c) client-input-mask)
-    ;(grabbuttons c #f)
+    (grab-buttons display c)
     ;(update-title! c)
     ;(process-transient-for-hint! c)
     (client-floating?-set! c (or (client-fixed? c) (client-fullscreen? c)))
@@ -223,7 +239,7 @@
   (let ((identity (lambda (x) x))
         (minimize (lambda (dim) (max dim 1)))
         (cut-base (lambda (dim when?) (if when? (- dim base) dim)))
-        (adjust-inc (lambda (dim) 
+        (adjust-inc (lambda (dim)
                       (if (positive? inc) (- dim (modulo dim inc)) dim)))
         (restore-base (lambda (dim) (+ dim base)))
         (clamp (lambda (dim) (if (positive? dmax) (min dim dmax) dim))))
@@ -238,8 +254,8 @@
       (values w h)))
 
 (define (respect-client-hints client w h)
-  (let* ((border (client-border client)) 
-         (minw (client-minw client)) 
+  (let* ((border (client-border client))
+         (minw (client-minw client))
          (basew (client-basew client))
          (maxw (client-maxw client))
          (minh (client-minh client))
@@ -250,14 +266,14 @@
          (mina (client-mina client))
          (maxa (client-maxa client))
          (base-is-min? (and (eq? basew minw) (eq? baseh minh)))
-         (prepare (lambda (dim base) 
+         (prepare (lambda (dim base)
                     (let ((dim (max dim 1)))
                       (if base-is-min? dim (- dim base))))))
     (call-with-values
-      (lambda () 
+      (lambda ()
         (adjust-aspect (prepare w basew) (prepare h baseh) mina maxa))
       (lambda (cw ch)
-        (values 
+        (values
           (hintize-dimension
             cw minw basew maxw incw base-is-min?
             (and (if (positive? maxa) (< maxa (/ cw ch)) 0) maxa))
@@ -280,7 +296,7 @@
          (sw (screen-w s))
          (sh (screen-h s))
          (border (client-border c)))
-    (call-with-values 
+    (call-with-values
       (lambda () (respect-client-hints c w h))
       (lambda (w h)
         (when (and (positive? w) (positive? h))
@@ -288,7 +304,7 @@
                 (y (clamp-dimension y (+ h (* 2 border)) sy sh))
                 (w (max w *bar-height*))
                 (h (max h *bar-height*)))
-            (unless (and (= (client-x c) x) (= (client-y c) y) 
+            (unless (and (= (client-x c) x) (= (client-y c) y)
                          (= (client-w c) w) (= (client-h c) h))
               (client-x-set! c x)
               (client-y-set! c y)

@@ -11,9 +11,7 @@
 
 (define-x-event (map-request display window parent send-event?)
 	(unless (or send-event? (client-from-window* window))
-		(let ((wa (x-get-window-attributes display window)))
-			(unless (x-window-attributes-override-redirect? wa)
-				(run-hook *manage-hook* display window wa (find-screen parent))))))
+    (pickup-window display (find-screen parent) window)))
 
 (define-x-event (mapping-notify display window ev request)
   (x-refresh-keyboard-mapping ev)
@@ -116,9 +114,9 @@
                        +revert-to-pointer-root+ 
                        +current-time+)))
 
-(define-x-event (button-press display window button x y time)
-  ;(x-allow-events display +replay-pointer+ time)
-  (run-hook *focus-hook* display (client-from-window* window)))
+(define-x-event (button-press display window time)
+  (run-hook *focus-hook* display (client-from-window* window))
+  (x-allow-events display +replay-pointer+ time))
 
 (define-x-event (key-press display code state)
   #f)

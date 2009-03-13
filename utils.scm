@@ -6,7 +6,7 @@
   (display (cons ";; " args) (current-error-port))
   (newline (current-error-port)))
 
-(define-macro (eval-when-load expr)
+(define-macro (eval-at-macroexpand expr)
   (eval expr)
   `(begin))
 
@@ -20,19 +20,25 @@
        #f
        (begin ,@body)))
 
+(eval-at-macroexpand
+  (define (find item <list>)
+    (let ((found (member item <list>)))
+      (if found
+          (car found)
+          #f))))
+
 (define (find item <list>)
-  (if (pair? <list>)
-      (if (eq? (car <list>) item)
-          item
-          (find item (cdr <list>)))
-      #f))
+  (let ((found (member item <list>)))
+      (if found
+          (car found)
+          #f)))
 
 (define (add-to-list <list> item)
   (if (not (find item <list>))
       (set-cdr! <list> (append <list> (list item)))))
 
 (define-macro (push item <list>)
-  `(set! <list> (cons ,item <list>)))
+  `(set! ,<list> (cons ,item ,<list>)))
 
 (define-macro (define-hook name)
   `(define ,name (list (lambda args #f))))
@@ -47,11 +53,11 @@
 (define (add-hook hook fn)
   (set-cdr! hook (append (cdr hook) (list fn))))
 
-(eval-when-load 
+(eval-at-macroexpand 
   (define (complement fn)
     (lambda args (not (apply fn args)))))
 
-(eval-when-load
+(eval-at-macroexpand
   (define (filter fn <list>)
     (let loop ((<list> <list>)
                (acc '()))
@@ -61,7 +67,7 @@
                                  acc))
           (reverse acc)))))
 
-(eval-when-load
+(eval-at-macroexpand
   (define (find-if fn <list>)
     (if (pair? <list>)
         (if (fn (car <list>))
@@ -69,18 +75,14 @@
             (find-if fn (cdr <list>)))
         #f)))
 
-(eval-when-load
-  (define (find item <list>)
-    (find-if (lambda (i) (eq? i item)) <list>)))
-
-(eval-when-load
+(eval-at-macroexpand
   (define (remove-if fn <list>)
     (filter (complement fn) <list>)))
 
 (define (remove item <list>)
   (remove-if (lambda (i) (eq? i item)) <list>))
 
-(eval-when-load
+(eval-at-macroexpand
   (define event-struct-mapping 
     (list->table '((mapping-notify . x-mapping-event)
                    (destroy-notify . x-destroy-window-event)
@@ -88,11 +90,11 @@
                    (property-notify . x-property-event)
                    (configure-notify . x-configure-event)
                    (focus-in . x-focus-change-event)
-                   (button-press . x-button-pressed-event)
+                   (button-press . x-button-event)
                    (key-press . x-key-event)
                    (enter-notify . x-crossing-event)))))
 
-(eval-when-load
+(eval-at-macroexpand
   (define (struct-from-event event)
     (let ((ev (table-ref event-struct-mapping event #f)))
       (if ev
@@ -101,7 +103,7 @@
                                          (symbol->string event)
                                          "-event"))))))
 
-(eval-when-load
+(eval-at-macroexpand
   (define (make-event-symbol type slot)
     (string->symbol (string-append (symbol->string type)
                                    "-"
@@ -155,3 +157,9 @@
 
 (define-macro (destructuring-bind args expr . body)
   `(apply (lambda ,args ,@body) ,expr))
+
+(define (pickup-window display screen window)
+  (let ((wa (x-get-window-attributes display window)))
+    (unless (x-window-attributes-override-redirect? wa)
+      (run-hook *manage-hook* display window wa screen))))
+
