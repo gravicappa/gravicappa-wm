@@ -132,7 +132,7 @@
                         "\n"))
          ,@body))))
 
-(define-macro (define-x-event args . body)
+(define-macro (define-x-event-handler args . body)
   `(table-set! *x11-event-dispatcher*
                ,(string->symbol 
                   (string-append "+" (symbol->string (car args)) "+"))

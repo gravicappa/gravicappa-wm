@@ -157,8 +157,8 @@
                    (client-window c)
                    #f
                    (bitwise-ior +button-press-mask+ +button-release-mask+)
-                   +grab-mode-async+
                    +grab-mode-sync+
+                   +grab-mode-async+
                    +none+
                    +none+)
     (when (< i 32)

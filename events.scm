@@ -9,11 +9,11 @@
   (lambda (display window wa screen)
     (manage-client display (make-client* window wa screen))))
 
-(define-x-event (map-request display window parent send-event?)
+(define-x-event-handler (map-request display window parent send-event?)
 	(unless (or send-event? (client-from-window* window))
     (pickup-window display (find-screen parent) window)))
 
-(define-x-event (mapping-notify display window ev request)
+(define-x-event-handler (mapping-notify display window ev request)
   (x-refresh-keyboard-mapping ev)
   (when (eq? request +mapping-keyboard+)
     ;(grab-keys display)
@@ -37,7 +37,7 @@
                         sibling: (if-set +cw-sibling+ above)
                         stack-mode: (if-set +cw-stack-mode+ detail))))
 
-(define-x-event (configure-request display window x y width height 
+(define-x-event-handler (configure-request display window x y width height
                                    border-width above value-mask detail)
   (let* ((c (client-from-window* window))
          (set? (lambda (flag) (not (zero? (bitwise-and flag value-mask)))))
@@ -74,17 +74,17 @@
                                  above value-mask detail))
     (x-sync display #f)))
 
-(define-x-event (destroy-notify display window)
+(define-x-event-handler (destroy-notify display window)
   (let ((c (client-from-window* window)))
     (when c
       (run-hook *unmanage-hook* display c))))
 
-(define-x-event (unmap-notify display window)
+(define-x-event-handler (unmap-notify display window)
   (let ((c (client-from-window* window)))
     (when c
       (run-hook *unmanage-hook* display c))))
 
-(define-x-event (property-notify display window atom state)
+(define-x-event-handler (property-notify display window atom state)
   (unless (eq? state +property-delete+)
     (let ((c (client-from-window* window)))
       (case atom
@@ -93,30 +93,30 @@
         ((+xa-wm-hints+) (update-wm-hints! c))
         ((+xa-wm-name+) #f)))))
 
-(define-x-event (configure-notify display window x y width height)
+(define-x-event-handler (configure-notify display window x y width height)
   (let ((s (find-screen window)))
-    (when (and s (not (and (eq? width (screen-w s)) 
+    (when (and s (not (and (eq? width (screen-w s))
                            (eq? height (screen-h s)))))
       (screen-w-set! s width)
       (screen-h-set! s height)
       (run-hook *arrange-hook* display))))
 
-(define-x-event (enter-notify display window mode detail)
-  (when (or (eq? mode +notify-normal+) 
+(define-x-event-handler (enter-notify display window mode detail)
+  (when (or (eq? mode +notify-normal+)
             (not (eq? detail +notify-inferior+))
             (find-screen window))
     (run-hook *focus-hook* display (client-from-window* window))))
 
-(define-x-event (focus-in display window)
+(define-x-event-handler (focus-in display window)
   (when (and *selected* (not (eq? window (client-window *selected*))))
-    (x-set-input-focus display 
-                       window 
-                       +revert-to-pointer-root+ 
+    (x-set-input-focus display
+                       window
+                       +revert-to-pointer-root+
                        +current-time+)))
 
-(define-x-event (button-press display window time)
+(define-x-event-handler (button-press display window time)
   (run-hook *focus-hook* display (client-from-window* window))
   (x-allow-events display +replay-pointer+ time))
 
-(define-x-event (key-press display code state)
+(define-x-event-handler (key-press display code state)
   #f)
