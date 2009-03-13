@@ -18,11 +18,11 @@
   (block)
   (not safe))
 
-(define-macro (%eval-when-load expr)
+(define-macro (%eval-at-macroexpand expr)
   (eval expr)
   `(begin))
 
-(%eval-when-load
+(%eval-at-macroexpand
   (define (%string-replace new old str)
     (list->string (map (lambda (c)
                          (if (char=? c old)
@@ -40,7 +40,7 @@
       default
       v))
 
-(%eval-when-load
+(%eval-at-macroexpand
   (define (%make-provided-mask args)
     (let loop ((args args)
                (idx 0)
@@ -52,7 +52,7 @@
                   (cons `(%provided-mask ,(car arg) ,idx) acc)))
           acc))))
 
-(%eval-when-load
+(%eval-at-macroexpand
   (define (%get-default-value arg)
     (if (null? (cddr arg))
         (case (cadr arg)
@@ -193,34 +193,17 @@ end-of-c-declare
 (include "Xlib-events#.scm")
 (include "Xlib-accessors#.scm")
 
-;(c-declare 
-;  "static int (*x11_error_handler)(Display *, XErrorEvent *);")
-;
-;(c-define (scheme-x-error-handler display ev) 
-;          (Display* XErrorEvent*)
-;          int
-;          "scheme_x_error_handler" 
-;          "" 
-;          (begin
-;            (if ((cdr error-handler) display ev)
-;                #f
-;                ((c-lambda () void "x11_error_handler")
-;                )))
-;
-;(c-initialize
-;  "x11_error_handler = XSetErrorHandler(scheme_x_error_handler);")
-
 (define (default-error-handler display ev)
   (let ((request-code (char->integer (x-error-event-request-code ev)))
         (error-code (char->integer (x-error-event-error-code ev))))
-    (error (string-append "Xlib: error request-code:" 
+    (error (string-append "Xlib: error request-code:"
                           (number->string request-code)
                           " error-code: "
                           (number->string error-code)))))
 
 (define error-handler (cons #f default-error-handler))
 
-(c-define (scheme-x-error-handler display ev) 
+(c-define (scheme-x-error-handler display ev)
           (Display* XEvent*)
           int
           "scheme_x_error_handler"
@@ -228,7 +211,7 @@ end-of-c-declare
           ((cdr error-handler) display ev)
           0)
 
-(define x-set-error-handler 
+(define x-set-error-handler
   (c-lambda ((function (Display* XEvent*) int))
             (pointer "void")
             "XSetErrorHandler"))
@@ -412,6 +395,20 @@ end-of-c-declare
             int
             "XUngrabButton"))
 
+(define x-grab-button
+  (c-lambda (Display*
+             unsigned-int
+             unsigned-int
+             Window
+             bool
+             unsigned-int
+             int
+             int
+             Window
+             Cursor)
+            int
+            "XGrabButton"))
+
 (define x-create-gc
   (c-lambda (Display*       ;; display
              Drawable       ;; d
@@ -480,13 +477,13 @@ end-of-c-declare
 (define (make-x-color-box)
   ((c-lambda ()
              XColor*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XColor));")))
+             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XColor));")))
 
 (define (make-x-gc-values-box)
   ((c-lambda
      ()
      XGCValues*/release-rc
-     "___result_voidstar = ___EXT(___alloc_rc) (sizeof (XGCValues));")))
+     "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XGCValues));")))
 
 (define x-set-input-focus
   (c-lambda (Display* Window int Time)
@@ -559,12 +556,10 @@ end-of-c-declare
             "
             XEvent ev;
             XEvent* pev;
-            if (XCheckMaskEvent (___arg1, ___arg2, &ev))
-            {
+            if (XCheckMaskEvent (___arg1, ___arg2, &ev)) {
               pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof (ev)));
               *pev = ev;
-            }
-            else
+            } else
               pev = 0;
             ___result_voidstar = pev;
             "))
@@ -576,11 +571,67 @@ end-of-c-declare
             XEvent ev;
             XEvent* pev;
             XNextEvent(___arg1, &ev);
-            pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof (ev)));
+            pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof(ev)));
             *pev = ev;
             ___result_voidstar = pev;
             "
             ))
+
+(c-define (query-tree-callback fn arg)
+          (scheme-object Window)
+          int
+          "query_tree_callback"
+          ""
+          (fn arg)
+          0)
+
+(define x-query-tree
+  (c-lambda (Display* Window scheme-object) int
+            "
+            Window root, parent, *wins = 0;
+            unsigned int num;
+
+            ___result = 0;
+            if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+              unsigned int i;
+
+              for (i = 0; i < num; ++i) {
+                query_tree_callback(___arg3, wins[i]);
+              }
+              ___result = 1;
+            }
+            "))
+
+(define x-window-parent
+  (c-lambda (Display* Window)
+            Window
+            "
+            Window root, parent, *wins = 0;
+            unsigned int num;
+
+            ___result = None;
+            if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+              ___result = parent;
+            }
+            "))
+
+(define x-window-root
+  (c-lambda (Display* Window)
+            Window
+            "
+            Window root, parent, *wins = 0;
+            unsigned int num;
+
+            ___result = None;
+            if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+              ___result = root;
+            }
+            "))
+
+(define x-allow-events
+  (c-lambda (Display* int Time)
+            int
+            "XAllowEvents"))
 
 (define x-select-input
   (c-lambda (Display*       ;; display
@@ -615,20 +666,20 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(%define/x-pstruct-getter x-get-window-attributes 
-                          (Display* Window) 
+(%define/x-pstruct-getter x-get-window-attributes
+                          (Display* Window)
                           "XWindowAttributes"
                           "XGetWindowAttributes(___arg1, ___arg2, &data);")
 
-(%define/x-pstruct-getter x-get-wm-normal-hints 
-                          (Display* Window) 
+(%define/x-pstruct-getter x-get-wm-normal-hints
+                          (Display* Window)
                           "XSizeHints"
                           "long msize;
-                          if(!XGetWMNormalHints(___arg1, 
-                                                ___arg2, 
-                                                &data, 
+                          if(!XGetWMNormalHints(___arg1,
+                                                ___arg2,
+                                                &data,
                                                 &msize))
-                          data.flags = PSize;")
+                            data.flags = PSize;")
 
 (define x-window-state-set!
   (c-lambda (Display* Window Atom long)
