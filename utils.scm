@@ -27,18 +27,9 @@
           (car found)
           #f))))
 
-(define (find item <list>)
-  (let ((found (member item <list>)))
-      (if found
-          (car found)
-          #f)))
-
 (define (add-to-list <list> item)
   (if (not (find item <list>))
       (set-cdr! <list> (append <list> (list item)))))
-
-(define-macro (push item <list>)
-  `(set! ,<list> (cons ,item ,<list>)))
 
 (define-macro (define-hook name)
   `(define ,name (list (lambda args #f))))
@@ -96,12 +87,11 @@
 
 (eval-at-macroexpand
   (define (struct-from-event event)
-    (let ((ev (table-ref event-struct-mapping event #f)))
+    (let ((ev (table-ref event-struct-mapping event #f))
+          (ev-str (symbol->string event)))
       (if ev
           ev
-          (string->symbol (string-append "x-"
-                                         (symbol->string event)
-                                         "-event"))))))
+          (string->symbol (string-append "x-" ev-str "-event"))))))
 
 (eval-at-macroexpand
   (define (make-event-symbol type slot)
@@ -109,7 +99,7 @@
                                    "-"
                                    (symbol->string slot)))))
 
-(define-macro (x-event-lambda event args . body)
+(define-macro (lambda/x-event event args . body)
   (let ((slots (remove-if (lambda (slot) (eq? slot 'ev)) args))
         (x-event (struct-from-event event))
         (ev (gensym)))
@@ -136,7 +126,7 @@
   `(table-set! *x11-event-dispatcher*
                ,(string->symbol 
                   (string-append "+" (symbol->string (car args)) "+"))
-               (x-event-lambda ,(car args) ,(cdr args) ,@body)))
+               (lambda/x-event ,(car args) ,(cdr args) ,@body)))
 
 (define (get-colour display screen color)
   (let* ((cmap (x-default-colormap-of-screen 
@@ -154,12 +144,4 @@
                  #t))))
     (when (and ret (= (x-alloc-color display cmap c) 1))
       (x-color-pixel c))))
-
-(define-macro (destructuring-bind args expr . body)
-  `(apply (lambda ,args ,@body) ,expr))
-
-(define (pickup-window display screen window)
-  (let ((wa (x-get-window-attributes display window)))
-    (unless (x-window-attributes-override-redirect? wa)
-      (run-hook *manage-hook* display window wa screen))))
 

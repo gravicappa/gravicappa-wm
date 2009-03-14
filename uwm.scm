@@ -1,8 +1,6 @@
 (include "xlib/Xlib#.scm")
 (include "utils.scm")
 
-(define *selected* #f)
-
 (define-hook *internal-startup-hook*)
 (define-hook *internal-loop-hook*)
 (define-hook *shutdown-hook*)
@@ -11,10 +9,16 @@
 (define-hook *arrange-hook*)
 (define-hook *focus-hook*)
 
+(define *selected* #f)
+(define *current-view* "first")
+(define *user-config-name* "~/.uwm.scm")
+
+(include "variables.scm")
 (include "screen.scm")
 (include "client.scm")
 (include "events.scm")
 (include "tile.scm")
+(include "client-ops.scm")
 
 (define (uwm-error-handler display ev)
   (let ((error-code (char->integer (x-error-event-error-code ev)))
@@ -39,26 +43,24 @@
   (set! +wm-state+ (x-intern-atom display "WM_STATE" 0)))
 
 (define (init-error-handler display)
+  (display-log "Initializing error handler")
   (set-x-error-handler! uwm-error-handler))
 
 (define (collect-windows display screen)
   (let ((windows '()))
     (x-query-tree display
                   (screen-root screen)
-                  (lambda (w) (push w windows)))
+                  (lambda (w) (set! windows (cons w windows))))
     (reverse windows)))
 
 (define (pickup-windows display)
+  (display-log "Picking up windows")
   (for-each
     (lambda (screen)
       (let ((wins (collect-windows display screen)))
         (for-each (lambda (window) (pickup-window display screen window))
                   wins)))
     *screens*))
-
-(add-hook *internal-startup-hook* 'init-atoms)
-(add-hook *internal-startup-hook* 'init-error-handler)
-(add-hook *internal-startup-hook* 'pickup-windows)
 
 (define (handle-x11-event xdisplay ev)
   (let ((handler (table-ref *x11-event-dispatcher* (x-any-event-type ev) #f)))
@@ -76,8 +78,6 @@
           (handle-x11-event xdisplay (x-next-event xdisplay))
           (loop)))
       #t)))
-
-(add-hook *internal-loop-hook* 'x11-event-hook)
 
 (define (main-loop xdisplay)
   (run-hook *internal-loop-hook* xdisplay)
@@ -110,6 +110,16 @@
           (get-option option (cddr args)))
       #f))
 
+(define (load-user-config display)
+  #f)
+
 (define (main . args)
   (uwm (or (get-option "-d" args) (getenv "DISPLAY" #f))))
+
+(set! *internal-startup-hook* '(init-atoms
+                                init-error-handler
+                                load-user-config
+                                init-screens
+                                pickup-windows))
+(set! *internal-loop-hook* '(x11-event-hook))
 

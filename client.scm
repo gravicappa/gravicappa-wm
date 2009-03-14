@@ -5,10 +5,10 @@
   fixed? urgent? fullscreen? floating?
   basew baseh incw inch maxw maxh minw minh mina maxa)
 
-(define client-input-mask (bitwise-ior +enter-window-mask+
-                                       +focus-change-mask+
-                                       +property-change-mask+
-                                       +structure-notify-mask+))
+(define *client-input-mask* (bitwise-ior +enter-window-mask+
+                                         +focus-change-mask+
+                                         +property-change-mask+
+                                         +structure-notify-mask+))
 
 (define (remove-from-stack c)
   (let ((s (client-screen c)))
@@ -30,7 +30,7 @@
   (and (eq? (client-w client) (screen-w (client-screen client)))
        (eq? (client-h client) (screen-h (client-screen client)))))
 
-(define (fullscreen-client client)
+(define (fullscreen-client! client)
   (client-border-set! client 0)
   (client-fullscreen?-set! client #t)
   (client-x-set! client (screen-x (client-screen client)))
@@ -49,7 +49,7 @@
     (client-y-set!
       c (hold (client-y c) (client-h c) (screen-y s) (screen-h s) border))))
 
-(define (maybe-center-client-on-screen c)
+(define (center-client-on-screen-if-floating c)
   (let ((center (lambda (a1 a2 b1 b2)
                   (if (> (+ (- a1 b1) a2) b2)
                       (+ b1 (/ (- b2 a2) 2))
@@ -64,7 +64,7 @@
 (define (tag-client client tags)
   #f)
 
-(define (configure-client display c)
+(define (configure-client-window display c)
   (let ((ev (make-x-event-box))
         (win (client-window c)))
     (x-any-event-display-set! ev display)
@@ -149,91 +149,81 @@
     c))
 
 (define (grab-buttons display c)
-  (x-ungrab-button display +any-button+ +any-modifier+ (client-window c))
-  (let loop ((i 1))
-    (x-grab-button display
-                   i
-                   +any-modifier+
-                   (client-window c)
-                   #f
-                   (bitwise-ior +button-press-mask+ +button-release-mask+)
-                   +grab-mode-sync+
-                   +grab-mode-async+
-                   +none+
-                   +none+)
-    (when (< i 32)
-      (loop (+ i 1)))))
+  (let ((mask (bitwise-ior +button-press-mask+ +button-release-mask+))
+        (win (client-window c)))
+    (x-ungrab-button display +any-button+ +any-modifier+ (client-window c))
+    (let loop ((i 1))
+      (x-grab-button display
+                     i
+                     +any-modifier+
+                     win
+                     #f
+                     mask
+                     +grab-mode-sync+
+                     +grab-mode-async+
+                     +none+
+                     +none+)
+      (when (< i 32)
+        (loop (+ i 1))))))
 
 (define (manage-client display c)
-  (let ((s (client-screen c)))
+  (let ((s (client-screen c))
+        (w (client-window c)))
     (cond ((client-wants-fullscreen? c)
-           (display-log "[x11] window "
-                        (client-window c)
-                        " wants fullscreen")
-           (fullscreen-client c))
+           (display-log "[x11] window " w " wants fullscreen")
+           (fullscreen-client! c))
           (else
-            (client-border-set! c border-width)
+            (client-border-set! c *border-width*)
             (hold-client-on-screen c)))
-    (x-configure-window
-      display (client-window c) border-width: (client-border c))
-    (x-set-window-border
-      display (client-window c) (get-colour display s *frame-color-normal*))
-    (configure-client display c)
+    (x-configure-window display w border-width: (client-border c))
+    (x-set-window-border display w (get-colour display s *border-color*))
+    (configure-client-window display c)
     (update-size-hints! display c)
-    (x-select-input display (client-window c) client-input-mask)
+    (x-select-input display w *client-input-mask*)
     (grab-buttons display c)
     ;(update-title! c)
     ;(process-transient-for-hint! c)
     (client-floating?-set! c (or (client-fixed? c) (client-fullscreen? c)))
-    ;(tag-client (list current-view) c)
+    (client-tags-set! c (list *current-view*))
     (when (client-floating? c)
-      (x-raise-window display (client-window c)))
+      (x-raise-window display w))
     (screen-clients-set! s (cons c (screen-clients s)))
     (screen-focus-stack-set! s (cons c (screen-focus-stack s)))
     (x-move-resize-window display
-                          (client-window c)
+                          w
                           (+ (client-x c) (* 2 (screen-w s)))
                           (client-y c)
                           (client-w c)
                           (client-h c))
-    (x-map-window display (client-window c))
-    (x-window-state-set! display (client-window c) +wm-state+ +normal-state+)
+    (x-map-window display w)
+    (x-window-state-set! display w +wm-state+ +normal-state+)
     (run-hook *arrange-hook* display s)
     (x-sync display #f)))
 
 (define (unmanage-client display c)
-  (dynamic-wind
-    (lambda ()
-      (x-grab-server display)
-      (set-x-error-handler! (lambda (display ev) #t)))
-    (lambda ()
-      (x-configure-window display
-                          (client-window c)
-                          border-width: (client-old-border c))
-      (remove-from-stack c)
-      (remove-from-focus-stack c)
-      (x-ungrab-button display +any-button+ +any-modifier+ (client-window c))
-      (x-window-state-set! display
-                           (client-window c)
-                           +wm-state+
-                           +withdrawn-state+))
-    (lambda ()
-      (x-sync display #f)
-      (set-x-error-handler! uwm-error-handler)
-      (x-ungrab-server display)))
-  (run-hook *arrange-hook* display (client-screen c))
-  (x-sync display #f))
-
-(add-hook *unmanage-hook* 'unmanage-client)
+  (let ((w (client-window c)))
+    (dynamic-wind
+      (lambda ()
+        (x-grab-server display)
+        (set-x-error-handler! (lambda (display ev) #t)))
+      (lambda ()
+        (x-configure-window display w border-width: (client-old-border c))
+        (remove-from-stack c)
+        (remove-from-focus-stack c)
+        (x-ungrab-button display +any-button+ +any-modifier+ w)
+        (x-window-state-set! display w +wm-state+ +withdrawn-state+))
+      (lambda ()
+        (x-sync display #f)
+        (set-x-error-handler! uwm-error-handler)
+        (x-ungrab-server display)))
+    (run-hook *arrange-hook* display (client-screen c))
+    (x-sync display #f)))
 
 (define (client-visible? c)
-  #t)
+  (member *current-view* (client-tags c)))
 
 (define (client-tiled? c)
   (and (client-visible? c) (not (client-floating? c))))
-
-(define (no-border dim client)
-  (- dim (* 2 (client-border client))))
 
 (define (hintize-dimension dim dmin base dmax inc base-is-min? aspect)
   (let ((identity (lambda (x) x))
@@ -311,3 +301,6 @@
               (client-w-set! c w)
               (client-h-set! c h)
               (x-move-resize-window display (client-window c) x y w h))))))))
+
+(set! *unmanage-hook* '(unmanage-client))
+

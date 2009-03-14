@@ -41,8 +41,6 @@
 								(loop (+ 1 i) (cons (init-single-screen display i) screens))
 								(reverse screens))))))
 
-(add-hook *internal-startup-hook* 'init-screens)
-
 (define (find-screen parent)
   (find-if (lambda (s) (eq? (screen-root s) parent)) *screens*))
 

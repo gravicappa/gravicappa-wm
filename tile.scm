@@ -1,8 +1,3 @@
-(define *frame-color-normal* #x331100)
-(define *frame-color-selected* #xff7755)
-(define *bar-height* 16)
-(define *tile-ratio* 1/2)
-
 (define (update-visibility display screen)
   (let loop ((clients (screen-clients screen)))
     (when (pair? clients)
@@ -29,12 +24,12 @@
     (when (and *selected* (not (eq? *selected* c)))
       (x-set-window-border display
                            (client-window *selected*)
-                           (get-colour display s *frame-color-normal*)))
+                           (get-colour display s *border-color*)))
     (cond (c (to-focus-stack-top c)
              (x-set-window-border
                display
                (client-window c)
-               (get-colour display s *frame-color-selected*))
+               (get-colour display s *selected-border-color*))
              (x-set-input-focus display
                                 (client-window c)
                                 +revert-to-pointer-root+
@@ -45,7 +40,6 @@
                                    +current-time+)))
     (set! *selected* c)))
 
-(add-hook *focus-hook* focus)
 
 (define (restack display screen)
   (when *selected*
@@ -62,6 +56,9 @@
           (screen-w screen)
           (- (screen-h screen) *bar-height*)))
 
+(define (no-border dim client)
+  (- dim (* 2 (client-border client))))
+
 (define (tile-client-rect display clients x y w h)
   (when (pair? clients)
     (let ((h (floor (/ h (length clients)))))
@@ -71,16 +68,11 @@
           (set! y (+ y (client-h c) (* 2 (client-border c)))))
         clients))))
 
-(define (get-tile-ratio display)
-  (if (procedure? *tile-ratio*)
-      (*tile-ratio* display)
-      *tile-ratio*))
-
-(define (tile display screen)
+(define (tile tile-ratio display screen)
   (call-with-values
     (lambda () (managed-area screen))
     (lambda (sx sy sw sh)
-      (let ((zoom-width (* sw (get-tile-ratio display)))
+      (let ((zoom-width (* sw tile-ratio))
             (clients (filter client-tiled? (screen-clients screen))))
         (cond ((null? clients))
               ((null? (cdr clients))
@@ -107,7 +99,9 @@
 (define (arrange display screen)
   (update-visibility display screen)
   (run-hook *focus-hook* display #f)
-  (tile display screen)
+  (tile *tile-ratio* display screen)
   (restack display screen))
 
-(add-hook *arrange-hook* 'arrange)
+(set! *manage-hook* '(manage-window))
+(set! *focus-hook* '(focus))
+(set! *arrange-hook* '(arrange))

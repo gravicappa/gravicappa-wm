@@ -1,13 +1,15 @@
 ;(include "xlib/Xlib#.scm")
 
-(define border-width 2)
-(define border-color #xffccaa)
-
 (define +wm-state+ #f)
 
-(add-hook *manage-hook*
-  (lambda (display window wa screen)
-    (manage-client display (make-client* window wa screen))))
+(define (pickup-window display screen window)
+  (let ((wa (x-get-window-attributes display window)))
+    (unless (x-window-attributes-override-redirect? wa)
+      (run-hook *manage-hook* display window wa screen))))
+
+(define (manage-window display window wa screen)
+  (display-log ";; managing window " window)
+  (manage-client display (make-client* window wa screen)))
 
 (define-x-event-handler (map-request display window parent send-event?)
 	(unless (or send-event? (client-from-window* window))
@@ -58,7 +60,7 @@
                      (client-w-set! c width))
                  (if (set? +cw-height+)
                      (client-w-set! c height))
-                 (maybe-center-client-on-screen c)
+                 (center-client-on-screen-if-floating c)
                  (if (and (set? (bitwise-ior +cw-x+ +cw-y+))
                           (not (set? (bitwise-ior +cw-width+ +cw-height+))))
                      (configure-client display c))
