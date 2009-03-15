@@ -6,8 +6,11 @@
           ((client-visible? c)
            (x-move-window display (client-window c) (client-x c) (client-y c))
            (when (client-floating? c)
-             (resize-client
-               c (client-x c) (client-y c) (client-w c) (client-h c)))
+             (resize-client c
+                            (client-x c)
+                            (client-y c)
+                            (client-w c)
+                            (client-h c)))
            (loop (cdr clients)))
           (else
             (loop (cdr clients))
@@ -22,10 +25,15 @@
                (find-if client-visible? (screen-focus-stack s))
                client)))
     (when (and *selected* (not (eq? *selected* c)))
+      (x-ungrab-button display
+                       +any-button+
+                       +any-modifier+
+                       (client-window *selected*))
       (x-set-window-border display
                            (client-window *selected*)
                            (get-colour display s *border-color*)))
     (cond (c (to-focus-stack-top c)
+             (grab-buttons c)
              (x-set-window-border
                display
                (client-window c)
@@ -40,11 +48,18 @@
                                    +current-time+)))
     (set! *selected* c)))
 
-
 (define (restack display screen)
   (when *selected*
     (when (client-floating? *selected*)
       (x-raise-window display (client-window *selected*)))
+    (let loop ((clients (filter client-tiled? (screen-clients screen)))
+               (sibling +none+))
+      (when (pair? clients)
+        (x-configure-window display
+                            (client-window (car clients))
+                            sibling: sibling
+                            stack-mode: +below+)
+        (loop (cdr clients) (client-window (car clients)))))
     (x-sync display #f)
     (let loop ()
       (when (x-check-mask-event display +enter-window-mask+)
@@ -59,12 +74,12 @@
 (define (no-border dim client)
   (- dim (* 2 (client-border client))))
 
-(define (tile-client-rect display clients x y w h)
+(define (tile-client-rect clients x y w h)
   (when (pair? clients)
     (let ((h (floor (/ h (length clients)))))
       (for-each
         (lambda (c)
-          (resize-client display c x y (no-border w c) (no-border h c))
+          (resize-client c x y (no-border w c) (no-border h c))
           (set! y (+ y (client-h c) (* 2 (client-border c)))))
         clients))))
 
@@ -76,21 +91,18 @@
             (clients (filter client-tiled? (screen-clients screen))))
         (cond ((null? clients))
               ((null? (cdr clients))
-               (resize-client display
-                              (car clients)
+               (resize-client (car clients)
                               sx
                               sy
                               (no-border sw (car clients))
                               (no-border sh (car clients))))
               (else
-                (resize-client display
-                               (car clients)
+                (resize-client (car clients)
                                sx
                                sy
                                (no-border zoom-width (car clients))
                                (no-border sh (car clients)))
-                (tile-client-rect display
-                                  (cdr clients)
+                (tile-client-rect (cdr clients)
                                   zoom-width
                                   sy
                                   (- sw zoom-width)

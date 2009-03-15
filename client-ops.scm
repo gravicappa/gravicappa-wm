@@ -12,16 +12,16 @@
 
 (define (opposite dir)
   (case dir
-    ((up) down) ((down) up) ((left) right) ((right) left)))
+    ((up) 'down) ((down) 'up) ((left) 'right) ((right) 'left)))
 
 (define (find-client* start end dist clients dir weight ret)
-  (if clients
-      (call-with-values 
+  (if (pair? clients)
+      (call-with-values
         (lambda () (client-edge (car clients) dir))
         (lambda (start1 end1 dist1)
           (let ((w (- (min end end1) (max start start1))))
             (if (and (< (abs (- dist dist1)) 10) (> w weight))
-                (find-client* 
+                (find-client*
                   start end dist (cdr clients) dir w (car clients))
                 (find-client* start end dist (cdr clients) dir weight ret)))))
       ret))
@@ -31,28 +31,31 @@
     (call-with-values
       (lambda () (client-edge client direction))
       (lambda (start end dist)
-        (find-client* start end dist in (opposite direction))))))
+        (find-client* start end dist in (opposite direction) 0 #f)))))
 
 (define (focus-client direction #!optional (client *selected*))
   (when client
-    (let* ((visible (filter client-visible? 
+    (let* ((visible (filter client-visible?
                             (screen-focus-stack (client-screen client))))
            (next (find-client direction client visible)))
       (when next
-        (focus next)))))
+        (run-hook *focus-hook* (client-display next) next)))))
 
 (define (focus-previous)
   (when *selected*
-    (let* ((visible (filter client-visible? 
-                            (screen-focus-stack (client-screen client))))
+    (let* ((visible (filter client-visible?
+                            (screen-focus-stack (client-screen *selected*))))
            (prev (cadr visible)))
       (when prev
-        (focus prev)))))
+        (run-hook *focus-hook* (client-display prev) prev)))))
 
 (define (zoom-client #!optional (client *selected*))
   (when client
-    (let ((clients (filter client-tiled? 
-                           (screen-focus-stack (client-screen client)))))
-      (if (and (eq client (car clients)) (cadr clients))
+    (let ((clients (filter client-tiled?
+                           (screen-clients (client-screen client)))))
+      (if (and (eq? client (car clients)) (cadr clients))
           (to-stack-top (cadr clients))
-          (to-stack-top client)))))
+          (to-stack-top client))
+      (run-hook *arrange-hook*
+                (client-display client)
+                (client-screen client)))))
