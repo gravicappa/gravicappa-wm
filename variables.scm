@@ -1,0 +1,15 @@
+(define *border-color* #x070707)
+(define *selected-border-color* #xfdaf3e)
+(define *border-width* 1)
+(define *bar-height* 17)
+(define *tile-ratio* 55/100)
+
+(define-key *top-map* (kbd "C-x C-v") (lambda () (display "keychain")))
+
+(define-key *top-map* (kbd "s-RET") (lambda () (shell-command "xterm")))
+(define-key *top-map* (kbd "s-h") (lambda () (focus-client 'left)))
+(define-key *top-map* (kbd "s-j") (lambda () (focus-client 'down)))
+(define-key *top-map* (kbd "s-k") (lambda () (focus-client 'up)))
+(define-key *top-map* (kbd "s-l") (lambda () (focus-client 'right)))
+(define-key *top-map* (kbd "s-a") (lambda () (focus-previous)))
+(define-key *top-map* (kbd "s-o") (lambda () (zoom-client)))

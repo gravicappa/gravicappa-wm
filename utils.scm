@@ -35,7 +35,7 @@
   `(define ,name (list (lambda args #f))))
 
 (define (run-hook hook . args)
-  (for-each (lambda (hook) 
+  (for-each (lambda (hook)
               (apply (cond ((procedure? hook) hook)
                            ((symbol? hook) (eval hook)))
                      args))
@@ -44,7 +44,7 @@
 (define (add-hook hook fn)
   (set-cdr! hook (append (cdr hook) (list fn))))
 
-(eval-at-macroexpand 
+(eval-at-macroexpand
   (define (complement fn)
     (lambda args (not (apply fn args)))))
 
@@ -74,10 +74,11 @@
   (remove-if (lambda (i) (eq? i item)) <list>))
 
 (eval-at-macroexpand
-  (define event-struct-mapping 
+  (define event-struct-mapping
     (list->table '((mapping-notify . x-mapping-event)
                    (destroy-notify . x-destroy-window-event)
                    (unmap-notify . x-unmap-event)
+                   (map-notify . x-map-event)
                    (property-notify . x-property-event)
                    (configure-notify . x-configure-event)
                    (focus-in . x-focus-change-event)
@@ -99,6 +100,13 @@
                                    "-"
                                    (symbol->string slot)))))
 
+(define (log-x-event name ev)
+  (display-log
+    "\n"
+    "[x11] event (name: " name ")\n"
+    "            (send-event?: " (x-any-event-send-event? ev) ")\n"
+    "            (win: " (x-any-event-window ev) ")\n"))
+
 (define-macro (lambda/x-event event args . body)
   (let ((slots (remove-if (lambda (slot) (eq? slot 'ev)) args))
         (x-event (struct-from-event event))
@@ -110,31 +118,22 @@
                    `((ev ,ev))
                    '()))
          (when +debug-events+
-           (display-log "[x11] event (id: " ',x-event ")\n" 
-                        "               (serial: " (x-any-event-serial ,ev) ")\n"
-                        "               (num: " 
-                        ,(string->symbol 
-                           (string-append "+" 
-                                          (symbol->string event) 
-                                          "+"))
-                        ")\n"
-                        "               (win: " (x-any-event-window ,ev) ")\n"
-                        "\n"))
+           (log-x-event ',event ,ev))
          ,@body))))
 
 (define-macro (define-x-event-handler args . body)
   `(table-set! *x11-event-dispatcher*
-               ,(string->symbol 
+               ,(string->symbol
                   (string-append "+" (symbol->string (car args)) "+"))
                (lambda/x-event ,(car args) ,(cdr args) ,@body)))
 
 (define (get-colour display screen color)
-  (let* ((cmap (x-default-colormap-of-screen 
+  (let* ((cmap (x-default-colormap-of-screen
                  (x-screen-of-display display (screen-id screen))))
          (c (make-x-color-box))
-         (component (lambda (mask shift) 
+         (component (lambda (mask shift)
                       (arithmetic-shift (bitwise-and color mask) shift)))
-         (ret (cond 
+         (ret (cond
                 ((string? color)
                  (= (x-parse-color display cmap color c) 1))
                 ((number? color)
@@ -144,4 +143,3 @@
                  #t))))
     (when (and ret (= (x-alloc-color display cmap c) 1))
       (x-color-pixel c))))
-

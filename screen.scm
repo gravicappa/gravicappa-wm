@@ -25,16 +25,18 @@
                               root
                               '()
                               '())))
-    (x-change-window-attributes display 
-                                root 
-                                event-mask: +root-event-mask+)
+    (x-change-property-atoms display
+                             root
+                             (get-atom "_NET_SUPPORTED")
+                             (list (get-atom "_NET_SUPPORTED")
+                                   (get-atom "_NET_WM_NAME")))
+    (x-change-window-attributes display root event-mask: +root-event-mask+)
 		(x-select-input display root +root-event-mask+)
-    (set! *current-screen* screen)
 		screen))
 
 (define (init-screens display)
 	(let ((num (x-screen-count display)))
-		(set!  *screens*
+		(set! *screens*
 					(let loop ((i 0)
 										 (screens '()))
 						(if (< i num)

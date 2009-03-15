@@ -1,5 +1,5 @@
 DEST = xlib uwm.o1
-RUN_CODE = '(load "xlib/Xlib") (load "uwm") (main "-d" "localhost:2")'
+RUN_CODE = '(load "xlib/Xlib") (load "uwm") (main "-d" "${DISPLAY}")'
 
 LDFLAGS = -lX11
 GSCFLAGS= -ld-options "${LDFLAGS}"
