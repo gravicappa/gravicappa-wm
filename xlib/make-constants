@@ -26,7 +26,7 @@ types_re=$(for f in $types; do printf "\<$f\>|"; done \
                   | sed 's/|$//')
 
 for f in $files; do
-	grep -E "#define[ 	]*[A-Z][A-Z_a-z]+[^(][ 	]" < "$f" \
+	grep -E "#define[ 	]*[A-Z][A-Z_a-z0-9]+[^(][ 	]" < "$f" \
 	| expand \
 	| cut -d' ' -f2 \
 	| grep -vE "$types_re"
