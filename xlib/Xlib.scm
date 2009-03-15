@@ -124,6 +124,8 @@
 ;;;============================================================================
 
 (c-declare "
+#include <stdlib.h>
+#include <stdio.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
@@ -150,6 +152,7 @@
 (c-define-type Colormap XID)
 (c-define-type GContext XID)
 (c-define-type KeySym XID)
+(c-define-type KeyCode unsigned-char)
 
 (c-declare #<<end-of-c-declare
 
@@ -327,6 +330,11 @@ end-of-c-declare
             Atom
             "XInternAtom"))
 
+(define x-get-atom-name
+  (c-lambda (Display* Atom)
+            char-string
+            "XGetAtomName"))
+
 (define x-default-gc
   (c-lambda (Display*      ;; display
              int)          ;; screen_number
@@ -381,7 +389,7 @@ end-of-c-declare
             "XSync"))
 
 (define x-grab-key
-  (c-lambda (Display* int unsigned-int Window Bool int int)
+  (c-lambda (Display* int unsigned-int Window bool int int)
             int
             "XGrabKey"))
 
@@ -389,6 +397,36 @@ end-of-c-declare
   (c-lambda (Display* int unsigned-int Window)
             int
             "XUngrabKey"))
+
+(define x-grab-keyboard
+  (c-lambda (Display* Window bool int int Time)
+            int
+            "XGrabKeyboard"))
+
+(define x-ungrab-keyboard
+  (c-lambda (Display* Time)
+            int
+            "XUngrabKeyboard"))
+
+(define x-keysym-to-keycode
+  (c-lambda (Display* KeySym)
+            KeyCode
+            "XKeysymToKeycode"))
+
+(define x-keycode-to-keysym
+  (c-lambda (Display* KeyCode int)
+            KeySym
+            "XKeycodeToKeysym"))
+
+(define x-keysym-to-string
+  (c-lambda (KeySym)
+            char-string
+            "XKeysymToString"))
+
+(define x-string-to-keysym
+  (c-lambda (char-string)
+            KeySym
+            "XStringToKeysym"))
 
 (define x-ungrab-button
   (c-lambda (Display* int unsigned-int Window)
@@ -646,7 +684,7 @@ end-of-c-declare
              "___result_voidstar = ___EXT(___alloc_rc)(sizeof (XEvent));")))
 
 (define x-send-event
-  (c-lambda (Display* Window Bool long XEvent*)
+  (c-lambda (Display* Window bool long XEvent*)
             Status
             "XSendEvent"))
 
@@ -681,6 +719,49 @@ end-of-c-lambda
                                                 &msize))
                             data.flags = PSize;")
 
+(define x-change-property-atoms
+  (c-lambda (Display* Window Atom scheme-object)
+            int
+#<<end-of-lambda
+  Atom *data = 0, *ptr;
+   long length = 0;
+   ___SCMOBJ lst;
+
+   lst = ___arg4;
+   for (length = 0; ___PAIRP(lst); lst = ___CDR(lst), ++length);
+
+#if 1
+   fprintf(stderr, "(XChangeProperty) %d items\n", length);
+#endif
+   data = (Atom *)malloc(length * sizeof(Atom));
+   if (data == 0)
+     return ___FIX(___HEAP_OVERFLOW_ERR);
+
+   for (lst = ___arg4, ptr = data;
+        ___PAIRP(lst);
+        lst = ___CDR(lst), ++ptr) {
+     ___SCMOBJ item = ___CAR(lst);
+     ___err = ___EXT(___SCMOBJ_to_U32)(item, (___U32 *)ptr, ___STILL);
+     if (___err != ___FIX(___NO_ERR)) {
+       free(data);
+       return ___err;
+     }
+#if 1
+   fprintf(stderr, "(XChangeProperty) item = %ld\n", *ptr);
+#endif
+   }
+   ___result = XChangeProperty(___arg1,
+                               ___arg2,
+                               ___arg3,
+                               XA_ATOM,
+                               32,
+                               PropModeReplace,
+                               (unsigned char *)data,
+                               length);
+   free(data);
+end-of-lambda
+))
+
 (define x-window-state-set!
   (c-lambda (Display* Window Atom long)
             int
@@ -692,7 +773,7 @@ end-of-c-lambda
                                          32,
                                          PropModeReplace,
                                          (unsigned char *)data,
-                                         32);"))
+                                         2);"))
 
 (define x-set-window-border-width
   (c-lambda (Display* Window unsigned-int)
@@ -703,6 +784,71 @@ end-of-c-lambda
   (c-lambda (Display* Window unsigned-long)
             int
             "XSetWindowBorder"))
+
+(define x-reparent-window
+  (c-lambda (Display* Window Window int int)
+            int
+            "XReparentWindow"))
+
+(define x-get-transient-for-hint
+  (c-lambda (Display* Window)
+            Window
+            "Window win = None;
+             if (!XGetTransientForHint(___arg1, ___arg2, &win))
+               ___result = win;
+             else
+               ___result = None;
+            "))
+
+(define x-get-text-property-list
+  (lambda (display window atom)
+    (reverse ((c-lambda (Display* Window Atom) scheme-object
+#<<end-of-lambda
+  XTextProperty name;
+  ___SCMOBJ ret;
+  int n;
+  char **list = 0;
+
+  ret = ___NUL;
+  XGetTextProperty(___arg1, ___arg2, &name, ___arg3);
+  /*
+  fprintf(stderr, "XGetTextProperty returned %ld entries\n", name.nitems);
+  */
+  if (name.nitems > 0) {
+    if (XmbTextPropertyToTextList(___arg1, &name, &list, &n)) {
+      int i;
+      /*
+      fprintf(stderr, "XmbTextPropertyToTextList returned %d entries\n", n);
+      */
+      for (i = 0; i < n; ++i) {
+        ___SCMOBJ item, tmp;
+        ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(list[i],
+                                                  &item,
+                                                  ___STILL);
+        if (___err != ___FIX(___NO_ERR)) {
+          XFree(name.value);
+          return ___err;
+        }
+#if 1
+        fprintf(stderr, "item[%d] = `%s'\n", i, list[i]);
+#endif
+        tmp = ___EXT(___make_pair)(item, ret, ___STILL);
+        ___EXT(___release_scmobj)(ret);
+        ___EXT(___release_scmobj)(item);
+        ret = tmp;
+      }
+    }
+    XFree(name.value);
+  }
+  ___EXT(___release_scmobj)(ret);
+
+  ___result = ret;
+
+end-of-lambda
+               )
+             display
+             window
+             atom))))
 
 (define x-move-resize-window
   (c-lambda (Display* Window int int unsigned-int unsigned-int)
