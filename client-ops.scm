@@ -19,8 +19,8 @@
       (call-with-values
         (lambda () (client-edge (car clients) dir))
         (lambda (start1 end1 dist1)
-          (let ((w (- (min end end1) (max start start1))))
-            (if (and (< (abs (- dist dist1)) 10) (> w weight))
+          (let ((w (abs (- dist dist1))))
+            (if (and (< (abs (- dist dist1)) 100) (> w weight))
                 (find-client*
                   start end dist (cdr clients) dir w (car clients))
                 (find-client* start end dist (cdr clients) dir weight ret)))))
@@ -48,6 +48,33 @@
            (prev (cadr visible)))
       (when prev
         (run-hook *focus-hook* (client-display prev) prev)))))
+
+(define (find-client-after c clients)
+  (let loop ((clients clients)
+             (old (last clients)))
+    (when (pair? clients)
+      (if (eq? c old)
+          (car clients)
+          (loop (cdr clients) (car clients))))))
+
+(define (find-client-before c clients)
+  (let loop ((clients clients)
+             (old (last clients)))
+    (when (pair? clients)
+      (if (eq? c (car clients))
+          old
+          (loop (cdr clients) (car clients))))))
+
+(define (focus-in-list dir #!optional (c *selected*))
+  (when c
+    (let* ((clients (screen-clients (client-screen c)))
+           (next ((case dir
+                    ((after) find-client-after)
+                    ((before) find-client-before))
+                  c
+                  (filter client-visible? clients))))
+      (when next
+        (run-hook *focus-hook* (client-display next) next)))))
 
 (define (zoom-client #!optional (client *selected*))
   (when client

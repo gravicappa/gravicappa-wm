@@ -4,7 +4,7 @@
 (define *bar-height* 17)
 (define *tile-ratio* 55/100)
 
-(define-key *top-map* (kbd "C-x C-v") (lambda () (display "keychain")))
+(define-key *top-map* (kbd "s-x s-c") (lambda () (exit)))
 
 (define-key *top-map* (kbd "s-RET") (lambda () (shell-command "xterm")))
 (define-key *top-map* (kbd "s-h") (lambda () (focus-client 'left)))
@@ -13,3 +13,5 @@
 (define-key *top-map* (kbd "s-l") (lambda () (focus-client 'right)))
 (define-key *top-map* (kbd "s-a") (lambda () (focus-previous)))
 (define-key *top-map* (kbd "s-o") (lambda () (zoom-client)))
+(define-key *top-map* (kbd "s-TAB") (lambda () (focus-in-list 'after)))
+(define-key *top-map* (kbd "s-S-TAB") (lambda () (focus-in-list 'before)))

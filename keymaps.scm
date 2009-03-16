@@ -3,7 +3,8 @@
 (define *ignored-modifiers* (list +lock-mask+ 
                                   +mod2-mask+
                                   (bitwise-ior +lock-mask+ +mod2-mask+)))
-(define *top-map* '())
+
+(define *top-map* (cons #f '()))
 
 (define *modifiers* `((#\S . ,+shift-mask+)
                       (#\C . ,+control-mask+)
@@ -140,8 +141,8 @@
       (add-to-tree keys fn map)
       (gc-bindings (add-to-tree keys fn map))))
 
-(define-macro (define-key map keys fn)
-  `(set! ,map (bind-key ,map ,keys ,fn)))
+(define (define-key map keys fn)
+  (set-cdr! map (bind-key (cdr map) keys fn)))
 
 (define (find-bindings key mod map)
   (find-if (lambda (b) 

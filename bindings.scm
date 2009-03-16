@@ -14,7 +14,7 @@
                           +grab-mode-async+
                           +grab-mode-async+))
             (cons 0 *ignored-modifiers*)))))
-    (map car *top-map*)))
+    (map car (cdr *top-map*))))
 
 (define (setup-bindings display)
   (for-each
@@ -68,6 +68,6 @@
              (process-key-sequence display (cdr binding)))))))
 
 (define (handle-keypress-event display key state)
-  (process-keypress display key (clean-mod state) *top-map*))
+  (process-keypress display key (clean-mod state) (cdr *top-map*)))
 
 (set! *keypress-hook* '(handle-keypress-event))

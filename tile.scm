@@ -75,13 +75,30 @@
   (- dim (* 2 (client-border client))))
 
 (define (tile-client-rect clients x y w h)
-  (when (pair? clients)
-    (let ((h (floor (/ h (length clients)))))
-      (for-each
-        (lambda (c)
-          (resize-client c x y (no-border w c) (no-border h c))
-          (set! y (+ y (client-h c) (* 2 (client-border c)))))
-        clients))))
+  (let loop ((clients clients)
+             (n (length clients))
+             (h h)
+             (y y))
+    (when (pair? clients)
+      (let ((c (car clients))
+            (ch (floor (/ h n))))
+        (resize-client c x y (no-border w c) (no-border ch c))
+        (loop (cdr clients)
+              (- n 1)
+              (- h (client-h c) (* 2 (client-border c)))
+              (+ y (client-h c) (* 2 (client-border c))))))))
+
+;(define (tile-client-rect clients x y w h)
+;  (when (pair? clients)
+;    (let ((ch (floor (/ h (length clients)))))
+;      (for-each
+;        (lambda (c)
+;          (resize-client c x y (no-border w c) (no-border ch c))
+;          (set! y (+ y (client-h c) (* 2 (client-border c))))
+;          (when (> (client-h c) ch)
+;            (display-log "Client is higher than said to be ("
+;                         (client-h c) " > " ch ")")))
+;        clients))))
 
 (define (tile tile-ratio display screen)
   (call-with-values

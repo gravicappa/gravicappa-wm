@@ -170,7 +170,7 @@
 
 (define (make-client* display window wa screen)
   (let ((c (make-client #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f
-                        #f #f #f #f #f #f #f #f)))
+                        #f #f #f #f #f #f #f)))
     (client-display-set! c display)
     (client-screen-set! c screen)
     (client-window-set! c window)
@@ -179,7 +179,6 @@
     (client-w-set! c (x-window-attributes-width wa))
     (client-h-set! c (x-window-attributes-height wa))
     (client-old-border-set! c (x-window-attributes-border-width wa))
-    (client-unmapped-set! c 0)
     c))
 
 (define (manage-client display c)
