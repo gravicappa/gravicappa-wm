@@ -204,14 +204,14 @@ end-of-c-declare
                           " error-code: "
                           (number->string error-code)))))
 
-(define error-handler (cons #f default-error-handler))
+(define error-handler default-error-handler)
 
 (c-define (scheme-x-error-handler display ev)
           (Display* XEvent*)
           int
           "scheme_x_error_handler"
           ""
-          ((cdr error-handler) display ev)
+          (error-handler display ev)
           0)
 
 (define x-set-error-handler
@@ -220,7 +220,7 @@ end-of-c-declare
             "XSetErrorHandler"))
 
 (define (set-x-error-handler! fn)
-  (set-cdr! error-handler fn)
+  (set! error-handler fn)
   (x-set-error-handler scheme-x-error-handler)
   (void))
 
@@ -724,41 +724,41 @@ end-of-c-lambda
             int
 #<<end-of-lambda
   Atom *data = 0, *ptr;
-   long length = 0;
-   ___SCMOBJ lst;
+  long length = 0;
+  ___SCMOBJ lst;
 
-   lst = ___arg4;
-   for (length = 0; ___PAIRP(lst); lst = ___CDR(lst), ++length);
+  lst = ___arg4;
+  for (length = 0; ___PAIRP(lst); lst = ___CDR(lst), ++length);
 
-#if 1
-   fprintf(stderr, "(XChangeProperty) %d items\n", length);
+#if 0
+  fprintf(stderr, "(XChangeProperty) %d items\n", length);
 #endif
-   data = (Atom *)malloc(length * sizeof(Atom));
-   if (data == 0)
-     return ___FIX(___HEAP_OVERFLOW_ERR);
+  data = (Atom *)malloc(length * sizeof(Atom));
+  if (data == 0)
+    return ___FIX(___HEAP_OVERFLOW_ERR);
 
-   for (lst = ___arg4, ptr = data;
-        ___PAIRP(lst);
-        lst = ___CDR(lst), ++ptr) {
-     ___SCMOBJ item = ___CAR(lst);
-     ___err = ___EXT(___SCMOBJ_to_U32)(item, (___U32 *)ptr, ___STILL);
-     if (___err != ___FIX(___NO_ERR)) {
-       free(data);
-       return ___err;
-     }
-#if 1
-   fprintf(stderr, "(XChangeProperty) item = %ld\n", *ptr);
+  for (lst = ___arg4, ptr = data;
+       ___PAIRP(lst);
+       lst = ___CDR(lst), ++ptr) {
+    ___SCMOBJ item = ___CAR(lst);
+    ___err = ___EXT(___SCMOBJ_to_U32)(item, (___U32 *)ptr, ___STILL);
+    if (___err != ___FIX(___NO_ERR)) {
+      free(data);
+      return ___err;
+    }
+#if 0
+  fprintf(stderr, "(XChangeProperty) item = %ld\n", *ptr);
 #endif
-   }
-   ___result = XChangeProperty(___arg1,
-                               ___arg2,
-                               ___arg3,
-                               XA_ATOM,
-                               32,
-                               PropModeReplace,
-                               (unsigned char *)data,
-                               length);
-   free(data);
+  }
+  ___result = XChangeProperty(___arg1,
+                              ___arg2,
+                              ___arg3,
+                              XA_ATOM,
+                              32,
+                              PropModeReplace,
+                              (unsigned char *)data,
+                              length);
+  free(data);
 end-of-lambda
 ))
 
@@ -826,6 +826,7 @@ end-of-lambda
                                                   &item,
                                                   ___STILL);
         if (___err != ___FIX(___NO_ERR)) {
+          ___EXT(___release_scmobj)(ret);
           XFree(name.value);
           return ___err;
         }
@@ -843,7 +844,6 @@ end-of-lambda
   ___EXT(___release_scmobj)(ret);
 
   ___result = ret;
-
 end-of-lambda
                )
              display
