@@ -1,5 +1,5 @@
 (define-structure client
-  name window screen tags display
+  name window screen tags display class
   x y w h
   border old-border
   fixed? urgent? fullscreen? floating?
@@ -60,12 +60,10 @@
 
 (define (tag-client c tags)
   ;; there are not many tags so using dumb algorithm
-  (let ((old-tags (client-tags c)))
-    (for-each
-      (lambda (t)
-        (set! old-tags (remove t old-tags)))
-      tags))
-  (client-tags-set! c (append old-tags tags)))
+  (when c
+    (client-tags-set! c tags)
+    (run-hook *retag-hook*)
+    (run-hook *arrange-hook* (client-display c) (client-screen c))))
 
 (define (configure-client-window display c)
   (let ((ev (make-x-event-box))
@@ -147,7 +145,8 @@
                    (x-get-text-property-list (client-display c)
                                              (client-window c)
                                              +xa-wm-name+))))
-    (display-log ";; strings = " strings)))
+    (if (pair? strings)
+        (client-name-set! c (car strings)))))
 
 (define (grab-buttons c)
   (let ((display (client-display c))
@@ -170,7 +169,7 @@
 
 (define (make-client* display window wa screen)
   (let ((c (make-client #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f
-                        #f #f #f #f #f #f #f)))
+                        #f #f #f #f #f #f #f #f)))
     (client-display-set! c display)
     (client-screen-set! c screen)
     (client-window-set! c window)
@@ -180,6 +179,16 @@
     (client-h-set! c (x-window-attributes-height wa))
     (client-old-border-set! c (x-window-attributes-border-width wa))
     c))
+
+(define (process-transient-for-hint! c)
+  (let* ((display (client-display c))
+         (w (client-window c))
+         (transient (x-get-transient-for-hint display w)))
+    (unless (eq? transient  +none+)
+      (client-floating?-set! c #t)
+      (let ((parent (client-from-window* transient)))
+        (when parent
+          (client-tags-set! c (client-tags parent)))))))
 
 (define (manage-client display c)
   (let ((s (client-screen c))
@@ -196,9 +205,14 @@
     (x-select-input display w *client-input-mask*)
     (x-ungrab-button display +any-button+ +any-modifier+ w)
     (update-title! c)
-    ;(process-transient-for-hint! c)
+    (process-transient-for-hint! c)
+    (client-class-set! c (x-get-class-hint display w))
+    (display-log "client class: " (client-class c) " name: " (client-name c))
     (client-tags-set! c (list *current-view*))
-    (client-floating?-set! c (or (client-fixed? c) (client-fullscreen? c)))
+    (run-hook *rules-hook* c)
+    (client-floating?-set! c (or (client-floating? c)
+                                 (client-fixed? c)
+                                 (client-fullscreen? c)))
     (when (client-floating? c)
       (x-raise-window display w))
     (screen-clients-set! s (cons c (screen-clients s)))
@@ -211,6 +225,7 @@
                           (client-h c))
     (x-map-window display w)
     (x-window-state-set! display w (get-atom "WM_STATE") +normal-state+)
+    (run-hook *retag-hook*)
     (run-hook *arrange-hook* display s)))
 
 (define (unmanage-client display c)
@@ -232,16 +247,20 @@
         (x-sync display #f)
         (set-x-error-handler! uwm-error-handler)
         (x-ungrab-server display)))
+    (run-hook *retag-hook*)
     (run-hook *arrange-hook* display (client-screen c))
     (x-sync display #f)))
 
+(define (client-tagged? c tag)
+  (member tag (client-tags c)))
+
 (define (client-visible? c)
-  (member *current-view* (client-tags c)))
+  (client-tagged? c *current-view*))
 
 (define (client-tiled? c)
   (and (client-visible? c) (not (client-floating? c))))
 
-(define (hintize-dimension dim dmin base dmax inc base-is-min? aspect)
+(define (hintize-dimension dim dmin base dmax inc base-is-min?)
   (let ((identity (lambda (x) x))
         (minimize (lambda (dim) (max dim 1)))
         (cut-base (lambda (dim when?) (if when? (- dim base) dim)))
@@ -280,12 +299,8 @@
         (adjust-aspect (prepare w basew) (prepare h baseh) mina maxa))
       (lambda (cw ch)
         (values
-          (hintize-dimension
-            cw minw basew maxw incw base-is-min?
-            (and (if (positive? maxa) (< maxa (/ cw ch)) 0) maxa))
-          (hintize-dimension
-            ch minh baseh maxh inch base-is-min?
-            (and (if (positive? mina) (< mina (/ ch cw)) 0) mina)))))))
+          (hintize-dimension cw minw basew maxw incw base-is-min?)
+          (hintize-dimension ch minh baseh maxh inch base-is-min?))))))
 
 (define (clamp-dimension dim size head width)
   (let ((dim (if (> dim (+ head width))
@@ -308,8 +323,8 @@
         (when (and (positive? w) (positive? h))
           (let ((x (floor (clamp-dimension x (+ w (* 2 border)) sx sw)))
                 (y (floor (clamp-dimension y (+ h (* 2 border)) sy sh)))
-                (w (floor (max w 1)))
-                (h (floor (max h 1))))
+                (w (floor (max w *bar-height*)))
+                (h (floor (max h *bar-height*))))
             (unless (and (= (client-x c) x) (= (client-y c) y)
                          (= (client-w c) w) (= (client-h c) h))
               (client-x-set! c x)
@@ -326,5 +341,29 @@
               (configure-client-window (client-display c) c)
               (x-sync (client-display c) #f))))))))
 
+(define (client-has-delete-proto? c)
+  (when c
+    (member (get-atom "WM_DELETE_WINDOW")
+            (x-get-wm-protocols (client-display c) (client-window c)))))
+
+(define (send-client-kill-message c)
+  (let ((ev (make-x-event-box))
+        (win (client-window c))
+        (display (client-display c)))
+    (x-client-message-event-type-set! ev +client-message+)
+    (x-client-message-event-window-set! ev win)
+    (x-client-message-event-message-type-set! ev (get-atom "WM_PROTOCOLS"))
+    (x-client-message-event-format-set! ev 32)
+    (x-client-message-event-data-l-set! ev 0 (get-atom "WM_DELETE_WINDOW"))
+    (x-client-message-event-data-l-set! ev 1 +current-time+)
+    (x-send-event display win #f +no-event-mask+ ev)))
+
+(define (kill-client c)
+  (when c
+    (if (client-has-delete-proto? c)
+        (send-client-kill-message c)
+        (x-kill-client (client-display c) (client-window c)))))
+
 (set! *unmanage-hook* '(unmanage-client))
+
 
