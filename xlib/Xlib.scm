@@ -196,6 +196,16 @@ end-of-c-declare
 (include "Xlib-events#.scm")
 (include "Xlib-accessors#.scm")
 
+(define x-client-message-event-data-l
+  (c-lambda (XEvent* int)
+            long
+            "___result = ___arg1->xclient.data.l[___arg2];"))
+
+(define x-client-message-event-data-l-set!
+  (c-lambda (XEvent* int long)
+            void
+            "___arg1->xclient.data.l[___arg2] = ___arg3;"))
+
 (define (default-error-handler display ev)
   (let ((request-code (char->integer (x-error-event-request-code ev)))
         (error-code (char->integer (x-error-event-error-code ev))))
@@ -376,6 +386,12 @@ end-of-c-declare
              Window)        ;; w
             int
             "XMapWindow"))
+
+(define x-kill-client
+  (c-lambda (Display*
+             XID)
+            int
+            "XKillClient"))
 
 (define x-flush
   (c-lambda (Display*)      ;; display
@@ -623,7 +639,7 @@ end-of-c-declare
           (fn arg)
           0)
 
-(define x-query-tree
+(define x-map-query-tree
   (c-lambda (Display* Window scheme-object) int
             "
             Window root, parent, *wins = 0;
@@ -639,6 +655,80 @@ end-of-c-declare
               ___result = 1;
             }
             "))
+
+(define (x-query-tree display window)
+  (reverse 
+    ((c-lambda (Display* Window) scheme-object
+#<<end-of-lambda
+  Window root, parent, *wins = 0;
+  unsigned int num;
+  ___SCMOBJ ret;
+
+  ___result = ___NUL;
+  ret = ___NUL;
+  if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+    unsigned int i;
+
+    for (i = 0; i < num; ++i) {
+      ___SCMOBJ item, tmp;
+      ___err = ___EXT(___U32_to_SCMOBJ)(wins[i], &item, ___STILL);
+      if (___err != ___FIX(___NO_ERR)) {
+        ___EXT(___release_scmobj)(ret);
+        if (wins)
+          XFree(wins);
+        return ___err;
+      }
+      tmp = ___EXT(___make_pair)(item, ret, ___STILL);
+      ___EXT(___release_scmobj)(ret);
+      ___EXT(___release_scmobj)(item);
+      ret = tmp;
+    }
+  }
+  if (wins)
+    XFree(wins);
+  ___EXT(___release_scmobj)(ret);
+  ___result = ret;
+end-of-lambda
+    ) 
+    display
+    window)))
+
+(define (x-get-wm-protocols display window)
+  (reverse 
+    ((c-lambda (Display* Window) scheme-object
+#<<end-of-lambda
+  Atom *atoms = 0;
+  int num;
+  ___SCMOBJ ret;
+
+  ___result = ___NUL;
+  ret = ___NUL;
+  if (XGetWMProtocols(___arg1, ___arg2, &atoms, &num)) {
+    int i;
+
+    for (i = 0; i < num; ++i) {
+      ___SCMOBJ item, tmp;
+      ___err = ___EXT(___U32_to_SCMOBJ)(atoms[i], &item, ___STILL);
+      if (___err != ___FIX(___NO_ERR)) {
+        ___EXT(___release_scmobj)(ret);
+        if (atoms)
+          XFree(atoms);
+        return ___err;
+      }
+      tmp = ___EXT(___make_pair)(item, ret, ___STILL);
+      ___EXT(___release_scmobj)(ret);
+      ___EXT(___release_scmobj)(item);
+      ret = tmp;
+    }
+  }
+  if (atoms)
+    XFree(atoms);
+  ___EXT(___release_scmobj)(ret);
+  ___result = ret;
+end-of-lambda
+    ) 
+    display
+    window)))
 
 (define x-window-parent
   (c-lambda (Display* Window)
@@ -794,7 +884,7 @@ end-of-lambda
   (c-lambda (Display* Window)
             Window
             "Window win = None;
-             if (!XGetTransientForHint(___arg1, ___arg2, &win))
+             if (XGetTransientForHint(___arg1, ___arg2, &win))
                ___result = win;
              else
                ___result = None;
@@ -849,6 +939,44 @@ end-of-lambda
              display
              window
              atom))))
+
+(define x-get-class-hint
+  (c-lambda (Display* Window)
+            scheme-object
+#<<end-of-lambda
+  XClassHint hint;
+  ___SCMOBJ ret;
+
+  ret = ___NUL;
+  if (XGetClassHint(___arg1, ___arg2, &hint)) {
+    ___SCMOBJ name, class;
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_name,
+                                              &name,
+                                              ___STILL);
+    if (___err != ___FIX(___NO_ERR)) {
+      XFree(hint.res_name);
+      XFree(hint.res_class);
+      return ___err;
+    }
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_class,
+                                              &class,
+                                              ___STILL);
+    if (___err != ___FIX(___NO_ERR)) {
+      ___EXT(___release_scmobj)(name);
+      XFree(hint.res_name);
+      XFree(hint.res_class);
+      return ___err;
+    }
+    ret = ___EXT(___make_pair)(name, class, ___STILL);
+    ___EXT(___release_scmobj)(name);
+    ___EXT(___release_scmobj)(class);
+    ___EXT(___release_scmobj)(ret);
+    XFree(hint.res_name);
+    XFree(hint.res_class);
+  }
+  ___result = ret;
+end-of-lambda
+))
 
 (define x-move-resize-window
   (c-lambda (Display* Window int int unsigned-int unsigned-int)
