@@ -1,6 +1,6 @@
 
 (define-structure screen
-  id x y w h root clients focus-stack)
+  id x y w h root display clients focus-stack)
 
 (define *screens* '())
 (define *current-screen* #f)
@@ -23,6 +23,7 @@
                               (x-display-width display i)
                               (x-display-height display i)
                               root
+                              display
                               '()
                               '())))
     (x-change-property-atoms display
