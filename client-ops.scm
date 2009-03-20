@@ -1,3 +1,4 @@
+(include "sort.scm")
 
 (define (client-edge c dir)
   (let ((x1 (client-x c))
@@ -80,9 +81,61 @@
   (when client
     (let ((clients (filter client-tiled?
                            (screen-clients (client-screen client)))))
-      (if (and (eq? client (car clients)) (cadr clients))
+      (if (and (eq? client (car clients))
+               (pair? (cdr clients))
+               (cadr clients))
           (to-stack-top (cadr clients))
           (to-stack-top client))
       (run-hook *arrange-hook*
                 (client-display client)
                 (client-screen client)))))
+
+(define (collect-tags clients tags)
+  (if (pair? clients)
+      (collect-tags (cdr clients) (append (client-tags (car clients)) tags))
+      tags))
+
+(define (collect-all-tags)
+  (let loop ((screens *screens*)
+             (tags '()))
+    (if (pair? screens)
+        (loop (cdr screens)
+              (collect-tags (screen-clients (car screens)) tags))
+        (remove-duplicates tags string=?-hash eq?))))
+
+(define (view-clients tag)
+  (set! *current-view* tag)
+  (run-hook *retag-hook*)
+  (let ((s (current-screen)))
+    (run-hook *arrange-hook* (screen-display s) s)))
+
+(define (collect-tagged-clients tag)
+  (let loop ((screens *screens*)
+             (clients '()))
+    (if (pair? screens)
+        (loop (cdr screens)
+              (append (filter (lambda (c) (client-tagged? c tag))
+                              (screen-clients (car screens)))
+                      clients))
+        clients)))
+
+(define (untag-client c tag)
+  (tag-client c (remove-if (lambda (t) (string=? "." t)) (client-tags c))))
+
+(define (mass-untag-clients tag)
+  (let ((c (collect-tagged-clients ".")))
+    (for-each (lambda (c) (untag-client c ".")) c)
+    (let ((s (current-screen)))
+      (run-hook *retag-hook*)
+      (run-hook *arrange-hook* (screen-display s) s))))
+
+(define (resize-client-by c dx dy dw dh)
+  (when (and c (client-floating? c))
+    (let ((s (client-screen c))
+          (x (+ (client-x c) dx))
+          (y (+ (client-y c) dy))
+          (w (+ (client-w c) dw))
+          (h (+ (client-h c) dh)))
+      (hold-client-on-screen c)
+      (resize-client c x y w h))))
+
