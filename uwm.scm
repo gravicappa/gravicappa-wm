@@ -9,11 +9,14 @@
 (define-hook *arrange-hook*)
 (define-hook *focus-hook*)
 (define-hook *keypress-hook*)
+(define-hook *retag-hook*)
+(define-hook *rules-hook*)
 
 (define *selected* #f)
 (define *current-view* "first")
 (define *user-config-file* "~/.uwm.scm")
 (define *atoms* (make-table))
+(define *main-mutex* (make-mutex))
 
 (include "screen.scm")
 (include "client.scm")
@@ -51,24 +54,18 @@
 (define (init-atoms display)
   (init-atom display "WM_STATE")
   (init-atom display "_NET_SUPPORTED")
-  (init-atom display "_NET_WM_NAME"))
+  (init-atom display "_NET_WM_NAME")
+  (init-atom display "WM_DELETE_WINDOW")
+  (init-atom display "WM_PROTOCOLS"))
 
 (define (init-error-handler display)
   (set-x-error-handler! uwm-error-handler))
 
-(define (collect-windows display screen)
-  (let ((windows '()))
-    (x-query-tree display
-                  (screen-root screen)
-                  (lambda (w) (set! windows (cons w windows))))
-    (reverse windows)))
-
 (define (pickup-windows display)
   (for-each
     (lambda (screen)
-      (let ((wins (collect-windows display screen)))
-        (for-each (lambda (window) (pickup-window display screen window))
-                  wins)))
+      (for-each (lambda (window) (pickup-window display screen window))
+                (x-query-tree display (screen-root screen))))
     *screens*))
 
 (define (handle-x11-event xdisplay ev)
@@ -87,6 +84,11 @@
         (when (positive? (x-pending xdisplay))
           (handle-x11-event xdisplay (x-next-event xdisplay))
           (loop)))
+      (let loop ()
+        (let ((fn (thread-receive 0 #f)))
+          (when fn
+            (fn)
+            (loop))))
       #t)))
 
 (define (main-loop xdisplay)
@@ -94,15 +96,15 @@
   (main-loop xdisplay))
 
 (define (uwm . args)
-  (let ((xdisplay-name (if (and (pair? args) (string? (car args)))
+  (let ((display-name (if (and (pair? args) (string? (car args)))
                            (car args)
                            #f))
         (display #f))
     (dynamic-wind
       (lambda ()
-        (set! display (x-open-display xdisplay-name))
+        (set! display (x-open-display display-name))
         (if (not display)
-            (error "Unable to open display"))
+            (error (string-append "Unable to open display " display-name)))
         (run-hook *internal-startup-hook* display))
       (lambda ()
         (x-sync display #f)

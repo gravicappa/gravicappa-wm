@@ -3,6 +3,7 @@
 (define *border-width* 1)
 (define *bar-height* 17)
 (define *tile-ratio* 55/100)
+(define *current-view* "1")
 
 (define-key *top-map* (kbd "s-x s-c") (lambda () (exit)))
 
