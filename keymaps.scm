@@ -112,7 +112,7 @@
     (cond
       ((null? binds) acc)
       ((null? (cdr bind)) (gc-bindings (cdr binds) acc))
-      ((atom? (cdr bind)) (gc-bindings (cdr binds) (cons bind acc)))
+      ((not (pair? (cdr bind))) (gc-bindings (cdr binds) (cons bind acc)))
       (else (let ((b (gc-bindings (cdr bind))))
               (gc-bindings (cdr binds) (if b
                                            (cons (cons (car bind) b) acc)
@@ -126,7 +126,7 @@
 (define (add-to-tree item value binds #!optional (acc '()))
   (let ((b (if (pair? binds) (car binds) '())))
     (cond 
-      ((and (null? item) (atom? binds) (null? acc)) value)
+      ((and (null? item) (not (pair? binds)) (null? acc)) value)
       ((null? item) acc)
       ((null? binds) (append (list (tree-from-list item value)) binds acc))
       ((equal? (car item) (car b))
