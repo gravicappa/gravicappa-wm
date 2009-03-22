@@ -58,13 +58,6 @@
     (client-x-set! c (f (client-x c) (client-w c) (screen-x s) (screen-w s)))
     (client-y-set! c (f (client-y c) (client-h c) (screen-y s) (screen-h s)))))
 
-(define (tag-client c tags)
-  ;; there are not many tags so using dumb algorithm
-  (when c
-    (client-tags-set! c tags)
-    (run-hook *retag-hook*)
-    (run-hook *arrange-hook* (client-display c) (client-screen c))))
-
 (define (configure-client-window display c)
   (let ((ev (make-x-event-box))
         (win (client-window c)))

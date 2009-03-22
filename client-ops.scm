@@ -119,8 +119,15 @@
                       clients))
         clients)))
 
-(define (untag-client c tag)
-  (tag-client c (remove-if (lambda (t) (string=? "." t)) (client-tags c))))
+(define (tag-client c tags)
+  ;; there are not many tags so using dumb algorithm
+  (when c
+    (client-tags-set! c tags)
+    (run-hook *retag-hook*)
+    (run-hook *arrange-hook* (client-display c) (client-screen c))))
+
+(define (untag-client c tags)
+  (tag-client c (remove-if (lambda (t) (member t tags)) (client-tags c))))
 
 (define (mass-untag-clients tag)
   (let ((c (collect-tagged-clients ".")))
