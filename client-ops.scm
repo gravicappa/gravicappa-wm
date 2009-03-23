@@ -131,7 +131,7 @@
 
 (define (mass-untag-clients tag)
   (let ((c (collect-tagged-clients ".")))
-    (for-each (lambda (c) (untag-client c ".")) c)
+    (for-each (lambda (c) (untag-client c '("."))) c)
     (let ((s (current-screen)))
       (run-hook *retag-hook*)
       (run-hook *arrange-hook* (screen-display s) s))))
