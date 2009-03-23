@@ -41,7 +41,9 @@
              (x-set-input-focus display
                                 (client-window c)
                                 +revert-to-pointer-root+
-                                +current-time+))
+                                +current-time+)
+             (if (client-floating? c)
+                 (x-raise-window display (client-window c))))
           (else (x-set-input-focus display
                                    (screen-root s)
                                    +revert-to-pointer-root+
