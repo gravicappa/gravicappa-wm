@@ -104,7 +104,8 @@
       (lambda ()
         (set! display (x-open-display display-name))
         (if (not display)
-            (error (string-append "Unable to open display " display-name)))
+            (error (string-append "Unable to open display "
+                                  (object->string display-name))))
         (run-hook *internal-startup-hook* display))
       (lambda ()
         (x-sync display #f)
