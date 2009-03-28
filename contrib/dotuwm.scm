@@ -59,20 +59,22 @@
 (define parse-tags
   (let ((split (make-splitter #\,)))
     (lambda (str)
-      (let ((tags (split str)))
-        (let loop ((tags tags)
-                   (+tags '())
-                   (-tags '()))
-          (if (pair? tags)
-              (if (char=? #\- (string-ref (car tags) 0))
-                  (loop (cdr tags)
-                        +tags
-                        (cons (substring (car tags)
-                                         1
-                                         (string-length (car tags)))
-                              -tags))
-                  (loop (cdr tags) (cons (car tags) +tags) -tags))
-              (values +tags -tags)))))))
+      (if str
+          (let ((tags (split str)))
+            (let loop ((tags tags)
+                       (+tags '())
+                       (-tags '()))
+              (if (pair? tags)
+                  (if (char=? #\- (string-ref (car tags) 0))
+                      (loop (cdr tags)
+                            +tags
+                            (cons (substring (car tags)
+                                             1
+                                             (string-length (car tags)))
+                                  -tags))
+                      (loop (cdr tags) (cons (car tags) +tags) -tags))
+                  (values +tags -tags))))
+          (values '() '())))))
 
 (define (tag c)
   (if c
@@ -100,7 +102,7 @@
   (if *selected*
       (cond
         ((string=? *current-view* ".")
-         (untag-client *selected* ".")
+         (untag-client *selected* '("."))
          (view-tag *prev-view*))
         (else
           (mass-untag-clients ".")
@@ -160,4 +162,15 @@
 (define-key *top-map* (kbd "s-S-l")
             (lambda () (resize-client-by *selected* 50 0 0 0)))
 
+(define-key *top-map* (kbd "XF86AudioRaiseVolume")
+            (lambda () (run-command "amixer set Master 2%+")))
+
+(define-key *top-map* (kbd "XF86AudioLowerVolume")
+            (lambda () (run-command "amixer set Master 2%-")))
+
+(define-key *top-map* (kbd "XF86AudioMute")
+            (lambda () (run-command "amixer set Master toggle")))
+
+(define-key *top-map* (kbd "XF86Sleep")
+            (lambda () (run-command "sudo pm-suspend")))
 (restart-bars)
