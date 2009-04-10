@@ -127,7 +127,9 @@
     (run-hook *arrange-hook* (client-display c) (client-screen c))))
 
 (define (untag-client c tags)
-  (tag-client c (remove-if (lambda (t) (member t tags)) (client-tags c))))
+  (let ((new-tags (remove-if (lambda (t) (member t tags)) (client-tags c))))
+    (if new-tags
+        (tag-client c new-tags))))
 
 (define (mass-untag-clients tag)
   (let ((c (collect-tagged-clients ".")))
