@@ -20,7 +20,7 @@
 
 (define-macro (%eval-at-macroexpand expr)
   (eval expr)
-  `(begin))
+  expr)
 
 (%eval-at-macroexpand
   (define (%string-replace new old str)

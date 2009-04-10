@@ -8,7 +8,7 @@
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
-  `(begin))
+  expr)
 
 (define-macro (when expr . body)
   `(if ,expr

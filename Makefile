@@ -9,7 +9,7 @@ GSCFLAGS= -ld-options "${LDFLAGS}"
 all: clean-obj ${DEST} 
 
 run: 
-	rlwrap -c -a'' -P ${RUN_CODE} -m gsi
+	rlwrap -c -a'' -P ${RUN_CODE} -m gsi -
 
 run-src: uwm.scm xlib
 	-rm uwm.o* 2> /dev/null
