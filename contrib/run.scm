@@ -31,7 +31,7 @@
             (lambda () (set! p (open-process `(path: "dmenu"
                                                arguments: ,args))))
             (lambda ()
-              (if p 
+              (if p
                   (begin (for-each
                            (lambda (line)
                              (display line p)
@@ -47,7 +47,8 @@
 
 (define (run-command cmd)
   (if cmd
-      (let ((t (make-thread (lambda () (shell-command cmd)))))
+      (let ((t (make-thread (lambda ()
+                              (shell-command (string-append cmd "&"))))))
         (cond (t (thread-start! t)
                  t)
               (else #f)))))
@@ -60,11 +61,11 @@
         (dynamic-wind
           (lambda () (set! p (open-process `(path: "dzen2"
                                              arguments: ,args))))
-          (lambda () 
+          (lambda ()
             (if p
                 (let loop ()
                   (let ((line (fn)))
-                    (if line 
+                    (if line
                         (begin
                           (display line p)
                           (newline p)
@@ -73,15 +74,16 @@
           (lambda () (if p (close-port p))))))))
 
 (define (bar side)
-  (let* ((align (case side 
+  (let* ((align (case side
                   ((left) "l")
                   ((right) "r")
                   ((center) "c")))
-         (t (make-thread 
+         (t (make-thread
               (lambda ()
-                (status (lambda () (thread-receive)) 
-                        `("-ta" ,align 
-                          "-fn" ,*bar-font*))))))
+                (status (lambda () (thread-receive))
+                        `("-ta" ,align
+                          "-fn" ,*bar-font*
+                          "-tw" "600"))))))
     (thread-start! t)
     t))
 
