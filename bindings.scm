@@ -27,9 +27,9 @@
   (let ((ev (x-check-mask-event display +key-press-mask+)))
     (if ev
         ((lambda/x-event key-press (display keycode state)
-                         (cons (x-keycode-to-keysym display 
-                                                    (integer->char keycode) 
-                                                    0) 
+                         (cons (x-keycode-to-keysym display
+                                                    (integer->char keycode)
+                                                    0)
                                state))
          ev)
         (read-x11-key display))))

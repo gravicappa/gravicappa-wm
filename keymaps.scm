@@ -1,6 +1,6 @@
 (include "xlib/Xlib#.scm")
 
-(define *ignored-modifiers* (list +lock-mask+ 
+(define *ignored-modifiers* (list +lock-mask+
                                   +mod2-mask+
                                   (bitwise-ior +lock-mask+ +mod2-mask+)))
 
@@ -125,13 +125,13 @@
 
 (define (add-to-tree item value binds #!optional (acc '()))
   (let ((b (if (pair? binds) (car binds) '())))
-    (cond 
+    (cond
       ((and (null? item) (not (pair? binds)) (null? acc)) value)
       ((null? item) acc)
       ((null? binds) (append (list (tree-from-list item value)) binds acc))
       ((equal? (car item) (car b))
-       (append 
-         (cdr binds) 
+       (append
+         (cdr binds)
          (list (cons (car b) (add-to-tree (cdr item) value (cdr b) '())))
          acc))
       (else (add-to-tree item value (cdr binds) (cons b acc))))))
@@ -145,7 +145,7 @@
   (set-cdr! map (bind-key (cdr map) keys fn)))
 
 (define (find-bindings key mod map)
-  (find-if (lambda (b) 
+  (find-if (lambda (b)
              (let ((b (car b)))
                (and (eq? key (car b)) (eq? mod (cdr b)))))
            map))
