@@ -39,7 +39,7 @@ LIBS = -lutil -ldl -lm -lX11
 	${CC} ${CFLAGS} -o $@ -c $<
 .PHONY: all clean clean-obj run xlib
 
-all: clean-obj ${DEST}
+all: ${BINARY}
 
 run:
 	rlwrap -c -a'' -P ${RUN_CODE} -m gsi -
