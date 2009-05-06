@@ -2,8 +2,6 @@ BINARY = uwm
 DEST = xlib uwm.o1
 RUN_CODE = '(load "xlib/Xlib") (load "uwm") (main "-d" "${DISPLAY}")'
 
-include c.mk
-
 GSC = gambit-gsc
 RUNFLAGS = -ld-options "-lX11"
 CC = gcc
