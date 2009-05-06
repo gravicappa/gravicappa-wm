@@ -121,14 +121,14 @@
 
 (define (tag-client c tags)
   ;; there are not many tags so using dumb algorithm
-  (when c
+  (when (and c (pair? tags))
     (client-tags-set! c tags)
     (run-hook *retag-hook*)
     (run-hook *arrange-hook* (client-display c) (client-screen c))))
 
 (define (untag-client c tags)
   (let ((new-tags (remove-if (lambda (t) (member t tags)) (client-tags c))))
-    (if new-tags
+    (if (pair? new-tags)
         (tag-client c new-tags))))
 
 (define (mass-untag-clients tag)
@@ -147,4 +147,5 @@
           (h (+ (client-h c) dh)))
       (hold-client-on-screen c)
       (resize-client c x y w h))))
+
 
