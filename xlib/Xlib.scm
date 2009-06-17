@@ -9,7 +9,7 @@
 
 (namespace ("Xlib#"))
 
-(##include "~~lib/gambit#.scm")
+(##include "~~/lib/gambit#.scm")
 (include "Xlib#.scm")
 
 (declare
@@ -163,14 +163,16 @@
 #include <stdio.h>
 #endif
 
-___SCMOBJ XFree_GC( void* ptr )
-{ GC p = ptr;
+___SCMOBJ
+XFree_GC(void *ptr)
+{
+  GC p = ptr;
 #ifdef debug_free
-  printf( "XFree_GC(%p)\n", p );
-  fflush( stdout );
+  printf("XFree_GC(%p)\n", p);
+  fflush(stdout);
 #endif
 #ifdef really_free
-  XFree( p );
+  XFree(p);
 #endif
   return ___FIX(___NO_ERR);
 }
@@ -657,7 +659,7 @@ end-of-c-declare
             "))
 
 (define (x-query-tree display window)
-  (reverse 
+  (reverse
     ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Window root, parent, *wins = 0;
@@ -689,12 +691,12 @@ end-of-c-declare
   ___EXT(___release_scmobj)(ret);
   ___result = ret;
 end-of-lambda
-    ) 
+    )
     display
     window)))
 
 (define (x-get-wm-protocols display window)
-  (reverse 
+  (reverse
     ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Atom *atoms = 0;
@@ -726,7 +728,7 @@ end-of-lambda
   ___EXT(___release_scmobj)(ret);
   ___result = ret;
 end-of-lambda
-    ) 
+    )
     display
     window)))
 
@@ -1073,5 +1075,3 @@ end-of-lambda
       (if (fn)
           (loop)
           #f))))
-;;;============================================================================
-;;;============================================================================
