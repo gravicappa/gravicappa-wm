@@ -3,8 +3,10 @@
 (define +debug-events+ #t)
 
 (define (display-log . args)
-  (display (cons ";; " args) (current-error-port))
-  (newline (current-error-port)))
+  (let ((port (current-error-port)))
+    (display ";; " port)
+    (for-each (lambda (a) (display a port)) args)
+    (newline port)))
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
@@ -34,11 +36,18 @@
 (define-macro (define-hook name)
   `(define ,name (list (lambda args #f))))
 
+(define (run-single-hook fn args)
+  (apply (cond ((procedure? fn) fn)
+               ((or (symbol? fn) (pair? fn)) (eval fn)))
+         args))
+
+(define (chain hook . args)
+  (let loop ((hook hook))
+    (if (and (pair? hook) (not (run-single-hook (car hook))))
+        (loop (cdr hook)))))
+
 (define (run-hook hook . args)
-  (for-each (lambda (hook)
-              (apply (cond ((procedure? hook) hook)
-                           ((symbol? hook) (eval hook)))
-                     args))
+  (for-each (lambda (h) (run-single-hook h args))
             hook))
 
 (define (add-hook hook fn)

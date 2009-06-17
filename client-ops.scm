@@ -28,54 +28,54 @@
       ret))
 
 (define (find-client direction client in)
-  (when (and client in)
-    (call-with-values
-      (lambda () (client-edge client direction))
-      (lambda (start end dist)
-        (find-client* start end dist in (opposite direction) 0 #f)))))
+  (if (and client in)
+      (call-with-values
+        (lambda () (client-edge client direction))
+        (lambda (start end dist)
+          (find-client* start end dist in (opposite direction) 0 #f)))))
 
 (define (focus-client direction #!optional (client *selected*))
-  (when client
-    (let* ((visible (filter client-visible?
-                            (screen-focus-stack (client-screen client))))
-           (next (find-client direction client visible)))
-      (when next
-        (run-hook *focus-hook* (client-display next) next)))))
+  (if client
+      (let* ((visible (filter client-visible?
+                              (screen-focus-stack (client-screen client))))
+             (next (find-client direction client visible)))
+        (if next
+            (run-hook *focus-hook* (client-display next) next)))))
 
 (define (focus-previous)
-  (when *selected*
-    (let* ((visible (filter client-visible?
-                            (screen-focus-stack (client-screen *selected*))))
-           (prev (cadr visible)))
-      (when prev
-        (run-hook *focus-hook* (client-display prev) prev)))))
+  (if *selected*
+      (let* ((v (filter client-visible?
+                        (screen-focus-stack (client-screen *selected*))))
+             (prev (cadr v)))
+        (if prev
+            (run-hook *focus-hook* (client-display prev) prev)))))
 
 (define (find-client-after c clients)
   (let loop ((clients clients)
              (old (last clients)))
-    (when (pair? clients)
-      (if (eq? c old)
-          (car clients)
-          (loop (cdr clients) (car clients))))))
+    (if (pair? clients)
+        (if (eq? c old)
+            (car clients)
+            (loop (cdr clients) (car clients))))))
 
 (define (find-client-before c clients)
   (let loop ((clients clients)
              (old (last clients)))
-    (when (pair? clients)
-      (if (eq? c (car clients))
-          old
-          (loop (cdr clients) (car clients))))))
+    (if (pair? clients)
+        (if (eq? c (car clients))
+            old
+            (loop (cdr clients) (car clients))))))
 
 (define (focus-in-list dir #!optional (c *selected*))
-  (when c
-    (let* ((clients (screen-clients (client-screen c)))
-           (next ((case dir
-                    ((after) find-client-after)
-                    ((before) find-client-before))
-                  c
-                  (filter client-visible? clients))))
-      (when next
-        (run-hook *focus-hook* (client-display next) next)))))
+  (if c
+      (let* ((clients (screen-clients (client-screen c)))
+             (next ((case dir
+                      ((after) find-client-after)
+                      ((before) find-client-before))
+                    c
+                    (filter client-visible? clients))))
+        (if next
+            (run-hook *focus-hook* (client-display next) next)))))
 
 (define (zoom-client #!optional (client *selected*))
   (when client
@@ -132,20 +132,18 @@
         (tag-client c new-tags))))
 
 (define (mass-untag-clients tag)
-  (let ((c (collect-tagged-clients ".")))
-    (for-each (lambda (c) (untag-client c '("."))) c)
+  (let ((clients (collect-tagged-clients tag)))
+    (for-each (lambda (c) (untag-client c (list tag))) clients)
     (let ((s (current-screen)))
       (run-hook *retag-hook*)
       (run-hook *arrange-hook* (screen-display s) s))))
 
 (define (resize-client-by c dx dy dw dh)
   (when (and c (client-floating? c))
-    (let ((s (client-screen c))
-          (x (+ (client-x c) dx))
-          (y (+ (client-y c) dy))
-          (w (+ (client-w c) dw))
-          (h (+ (client-h c) dh)))
-      (hold-client-on-screen c)
-      (resize-client c x y w h))))
-
+    (hold-client-on-screen c)
+    (resize-client c
+                   (+ (client-x c) dx)
+                   (+ (client-y c) dy)
+                   (+ (client-w c) dw)
+                   (+ (client-h c) dh))))
 

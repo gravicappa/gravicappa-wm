@@ -33,7 +33,7 @@
                         stack-mode: (if-set +cw-stack-mode+ detail))))
 
 (define-x-event-handler (configure-request display window x y width height
-                                   border-width above value-mask detail)
+                                           border-width above value-mask detail)
   (let ((c (client-from-window* window))
         (set? (lambda (flag) (not (zero? (bitwise-and flag value-mask))))))
     (if c
@@ -49,8 +49,8 @@
                      (client-w-set! c width))
                  (if (set? +cw-height+)
                      (client-h-set! c height))
-                 (when (client-floating? c)
-                   (center-client-on-screen c))
+                 (if (client-floating? c)
+                     (center-client-on-screen c))
                  (if (and (set? (bitwise-ior +cwx+ +cwy+))
                           (not (set? (bitwise-ior +cw-width+ +cw-height+))))
                      (configure-client-window display c))
@@ -62,20 +62,20 @@
                                            (client-w c)
                                            (client-h c))))
                 (else (configure-client-window display c))))
-        (handle-unmanaged-window display window x y width height border-width
-                                 above value-mask detail))
+      (handle-unmanaged-window display window x y width height border-width
+                               above value-mask detail))
     (x-sync display #f)))
 
 (define-x-event-handler (destroy-notify display window)
   (let ((c (client-from-window* window)))
-    (when c
-      (run-hook *unmanage-hook* display c))))
+    (if c
+        (run-hook *unmanage-hook* display c))))
 
 (define-x-event-handler (unmap-notify send-event? event display window)
   (when (or send-event? (eq? event window))
     (let ((c (client-from-window* window)))
-      (when c
-        (run-hook *unmanage-hook* display c)))))
+      (if c
+          (run-hook *unmanage-hook* display c)))))
 
 (define-x-event-handler (property-notify display window atom state)
   (unless (eq? state +property-delete+)
@@ -83,18 +83,20 @@
                  " atom:" (x-get-atom-name display atom)
                  " state:" state)
     (let ((c (client-from-window* window)))
-      (when c
-        (cond ((eq? atom +xa-wm-transient-for+)
-               (unless (eq? (x-get-transient-for-hint display window) +none+)
-                 (client-floating?-set! c #t)
-                 (run-hook *arrange-hook* display (client-screen c))
-                 #f))
-              ((eq? atom +xa-wm-normal-hints+)
-               (update-size-hints! display c))
-              ((eq? atom +xa-wm-hints+)
-               (update-wm-hints! display c))
-              ((or (eq? atom +xa-wm-name+) (eq? atom (get-atom "_NET_WM_NAME")))
-               (update-title! c)))))))
+      (if c
+          (cond ((eq? atom +xa-wm-transient-for+)
+                 (unless (eq? (x-get-transient-for-hint display window)
+                              +none+)
+                   (client-floating?-set! c #t)
+                   (run-hook *arrange-hook* display (client-screen c))
+                   #f))
+                ((eq? atom +xa-wm-normal-hints+)
+                 (update-size-hints! display c))
+                ((eq? atom +xa-wm-hints+)
+                 (update-wm-hints! display c))
+                ((or (eq? atom +xa-wm-name+)
+                     (eq? atom (get-atom "_NET_WM_NAME")))
+                 (update-title! c)))))))
 
 (define-x-event-handler (configure-notify display event window
                                           x y width height)
@@ -107,17 +109,17 @@
       (x-sync display #f))))
 
 (define-x-event-handler (enter-notify display window mode detail)
-  (when (or (and (eq? mode +notify-normal+)
-                 (not (eq? detail +notify-inferior+)))
-            (find-screen window))
-    (run-hook *focus-hook* display (client-from-window* window))))
+  (if (or (and (eq? mode +notify-normal+)
+               (not (eq? detail +notify-inferior+)))
+          (find-screen window))
+      (run-hook *focus-hook* display (client-from-window* window))))
 
 (define-x-event-handler (focus-in display window)
-  (when (and *selected* (not (eq? window (client-window *selected*))))
-    (x-set-input-focus display
-                       (client-window *selected*)
-                       +revert-to-pointer-root+
-                       +current-time+)))
+  (if (and *selected* (not (eq? window (client-window *selected*))))
+      (x-set-input-focus display
+                         (client-window *selected*)
+                         +revert-to-pointer-root+
+                         +current-time+)))
 
 (define-x-event-handler (button-press display window time)
   (run-hook *focus-hook* display (client-from-window* window))
@@ -128,5 +130,5 @@
     (run-hook *keypress-hook* display keysym state)))
 
 (define-x-event-handler (expose display window count)
-  ;; TODO: modeline window should be redrawn here
+  ;; TODO: modeline window should be redrawn here if exists
   #f)

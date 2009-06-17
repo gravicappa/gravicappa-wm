@@ -14,7 +14,7 @@
     (with-output-to-string '()
       (lambda ()
         (display "dmenu")
-        (for-each (lambda (a) (display (list " \"" a "\""))) args)))))
+        (for-each (lambda (a) (display (string-append " \"" a "\""))) args)))))
 
 (define (dmenu title fn)
   (let ((args `("-p" ,title
@@ -47,11 +47,9 @@
 
 (define (run-command cmd)
   (if cmd
-      (let ((t (make-thread (lambda ()
-                              (shell-command (string-append cmd "&"))))))
-        (cond (t (thread-start! t)
-                 t)
-              (else #f)))))
+      (thread-start!
+       (make-thread (lambda ()
+                      (shell-command (string-append cmd "&")))))))
 
 (define (status fn args)
   (with-exception-catcher
