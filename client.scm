@@ -6,7 +6,8 @@
   basew baseh incw inch maxw maxh minw minh mina maxa)
 
 (define (make-client* display window wa screen)
-  (let ((c (make-client #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f
+  (let ((c (make-client #f #f #f '() 
+                        #f #f #f #f #f #f #f #f #f #f #f #f #f #f
                         #f #f #f #f #f #f #f #f)))
     (client-display-set! c display)
     (client-screen-set! c screen)
@@ -125,7 +126,7 @@
               (client-minh-set! c 0))))
 
 (define (set-client-aspect! c hints)
-  (cond ((hint-set? +p-aspect+)
+  (cond ((hint-set? +p-aspect+ hints)
          (client-mina-set! c
                            (if (positive? (x-size-hints-min-aspect-y hints))
                                (/ (x-size-hints-min-aspect-x hints)
