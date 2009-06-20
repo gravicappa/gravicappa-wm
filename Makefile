@@ -1,6 +1,10 @@
-BINARY = uwm
-DEST = xlib uwm.o1
-RUN_CODE = '(load "xlib/Xlib") (load "uwm") (main "-d" "${DISPLAY}")'
+name = gravicappa-wm
+executable = ${name}
+version = HEAD
+
+DEST = xlib gravicappa-wm.o1
+
+RUN_CODE = '(load "xlib/Xlib") (load "gravicappa-wm") (main "-d" "${DISPLAY}")'
 
 GSC = gambit-gsc
 RUNFLAGS = -ld-options "-lX11"
@@ -37,28 +41,28 @@ LIBS = -lutil -ldl -lm -lX11
 	${CC} ${CFLAGS} -o $@ -c $<
 .PHONY: all clean clean-obj run xlib
 
-all: ${BINARY}
+all: ${executable}
 
 run:
 	rlwrap -c -a'' -P ${RUN_CODE} -m gsi -
 
-run-src: uwm.scm xlib
-	-rm uwm.o* 2> /dev/null
+run-src: gravicappa-wm.scm xlib
+	-rm gravicappa-wm.o* 2> /dev/null
 	make run
 
 clean: clean-obj
-	-rm *.c *.o ${BINARY}
+	-rm *.c *.o ${executable}
 
-uwm-main.c: uwm-main.scm xlib/Xlib.c
+main.c: main.scm xlib/Xlib.c
 	gambit-gsc -f -c -check -o $@ $<
 
 xlib/Xlib.c: xlib/Xlib.scm
 	gambit-gsc -f -c -check -o $@ $<
 
-_uwm-main.c: xlib/Xlib.c uwm-main.c
+_main.c: xlib/Xlib.c main.c
 	gambit-gsc -f -link -l ${GAMBIT_LIBDIR}/_gambc -o $@ $^
 
-${BINARY}: _uwm-main.o xlib/Xlib.o uwm-main.o ${GAMBIT_LIB}
+${executable}: _main.o xlib/Xlib.o main.o ${GAMBIT_LIB}
 	 ${CC} ${LDFLAGS} $^ ${LIBS} -o $@
 
 xlib:
@@ -69,3 +73,7 @@ clean-obj:
 
 %.o1 : %.scm xlib
 	${GSC} ${RUNFLAGS} $<
+
+pack: 
+	git archive --format=tar --prefix=${name}-${version}/ ${version}^{tree} \
+	| bzip2 > ${name}-${version}.tar.bz2

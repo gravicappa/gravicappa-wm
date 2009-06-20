@@ -1,4 +1,4 @@
-(include "~/develop/run.scm")
+(include "~/develop/uwm/contrib/utils.scm")
 
 (define *border-color* #x070707)
 (define *selected-border-color* #xfdaf3e)
@@ -6,123 +6,23 @@
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
 
+(define *bar-font* "-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")
+(define *bar-norm-bg-color* "black")
+(define *bar-norm-color* "gray")
+(define *bar-sel-bg-color* "#403010")
+(define *bar-sel-color* "white")
+
 (define *dmenu-runner*
-  (string-append "`" (make-dmenu-command "Run:") "< ~/.programs`"))
-
-(define left-bar #f)
-(define right-bar #f)
-
-(define (restart-bars)
-  (run-command "killall dzen2")
-  (set! left-bar (bar 'left))
-  (set! right-bar
-    (run-command
-      "status | dzen2 -ta r -tw 500 -x 1180 -fn -*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")))
-
-(define (update-tag-status)
-  (let ((tags (collect-all-tags)))
-    (if left-bar
-        (thread-send
-          left-bar
-          (with-output-to-string '()
-            (lambda ()
-              (display (list *current-view* " |"))
-              (for-each (lambda (t)
-                          (display " ")
-                          (if (string=? t *current-view*)
-                              (display (list "[" t "]"))
-                              (display t)))
-                        tags)))))))
+  (string-append "`" (make-dmenu-command "Run:") "< ~/.proglist`"))
 
 (update-tag-status)
 
 (add-hook *retag-hook* 'update-tag-status)
 
-(define (to-run fn)
-  (if fn
-      (thread-send (current-thread) fn)))
-
-(define (make-splitter sep)
-  (lambda (str)
-    (call-with-input-string
-      str
-      (lambda (p)
-        (read-all p (lambda (p) (read-line p sep)))))))
-
-(define (make-splitter sep)
-  (lambda (str)
-    (call-with-input-string
-      str
-      (lambda (p)
-        (read-all p (lambda (p) (read-line p sep)))))))
-
-(define parse-tags
-  (let ((split (make-splitter #\,)))
-    (lambda (str)
-      (if str
-          (let ((tags (split str)))
-            (let loop ((tags tags)
-                       (+tags '())
-                       (-tags '()))
-              (if (pair? tags)
-                  (if (char=? #\- (string-ref (car tags) 0))
-                      (loop (cdr tags)
-                            +tags
-                            (cons (substring (car tags)
-                                             1
-                                             (string-length (car tags)))
-                                  -tags))
-                      (loop (cdr tags) (cons (car tags) +tags) -tags))
-                  (values +tags -tags))))
-          (values '() '())))))
-
-(define (tag c)
-  (if c
-      (call-with-values
-        (lambda ()
-          (parse-tags (dmenu "Tag client:" (lambda () (collect-all-tags)))))
-        (lambda (+tags -tags)
-          (to-run (lambda ()
-                    (tag-client c +tags)
-                    (untag-client c -tags)))))))
-
-(define *prev-view* "")
-
-(define (view-tag tag)
-  (if tag
-      (begin
-        (if (not (string=? *current-view* tag))
-            (set! *prev-view* *current-view*))
-        (to-run (lambda () (view-clients tag))))))
-
-(define (view)
-  (view-tag (dmenu "View:" (lambda () (collect-all-tags)))))
-
-(define (toggle-fullscreen)
-  (if *selected*
-      (cond
-        ((string=? *current-view* ".")
-         (untag-client *selected* '("."))
-         (view-tag *prev-view*))
-        (else
-          (mass-untag-clients ".")
-          (tag-client *selected* (cons "." (client-tags *selected*)))
-          (view-tag ".")))))
-
-(define (eval-from-string str)
-  (if str
-      (with-exception-catcher
-        (lambda (e) #f)
-        (lambda ()
-          (eval (with-input-from-string str (lambda () (read))))))))
-
 (define-key *top-map* (kbd "s-x s-c") (lambda () (exit)))
-(define-key *top-map* (kbd "s-x s-l")
-            (lambda ()
-              (run-command "killall dzen2")
-              (load *user-config-file*)))
-(define-key *top-map* (kbd "s-RET") (lambda () (run-command "xterm")))
-(define-key *top-map* (kbd "s-p") (lambda () (run-command *dmenu-runner*)))
+(define-key *top-map* (kbd "s-x s-l") (lambda () (load *user-config-file*)))
+(define-key *top-map* (kbd "s-RET") (lambda () (shell-command& "xterm")))
+(define-key *top-map* (kbd "s-p") (lambda () (shell-command& *dmenu-runner*)))
 (define-key *top-map* (kbd "s-c") (lambda () (kill-client *selected*)))
 (define-key *top-map* (kbd "s-h") (lambda () (focus-client 'left)))
 (define-key *top-map* (kbd "s-j") (lambda () (focus-client 'down)))
@@ -143,7 +43,6 @@
                                  (eval-from-string
                                    (dmenu "Eval:" (lambda () '())))))))
 
-
 (define-key *top-map* (kbd "s-M-h")
             (lambda () (resize-client-by *selected* 0 0 -50 0)))
 (define-key *top-map* (kbd "s-M-j")
@@ -162,15 +61,4 @@
 (define-key *top-map* (kbd "s-S-l")
             (lambda () (resize-client-by *selected* 50 0 0 0)))
 
-(define-key *top-map* (kbd "XF86AudioRaiseVolume")
-            (lambda () (run-command "amixer set Master 2%+")))
-
-(define-key *top-map* (kbd "XF86AudioLowerVolume")
-            (lambda () (run-command "amixer set Master 2%-")))
-
-(define-key *top-map* (kbd "XF86AudioMute")
-            (lambda () (run-command "amixer set Master toggle")))
-
-(define-key *top-map* (kbd "XF86Sleep")
-            (lambda () (run-command "sudo pm-suspend")))
 (restart-bars)

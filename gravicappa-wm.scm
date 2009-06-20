@@ -52,11 +52,12 @@
   (table-ref *atoms* name #f))
 
 (define (init-atoms display)
-  (init-atom display "WM_STATE")
-  (init-atom display "_NET_SUPPORTED")
-  (init-atom display "_NET_WM_NAME")
-  (init-atom display "WM_DELETE_WINDOW")
-  (init-atom display "WM_PROTOCOLS"))
+  (for-each (lambda (a) (init-atom display a))
+            '("WM_STATE"
+              "WM_DELETE_WINDOW"
+              "WM_PROTOCOLS"
+              "_NET_WM_NAME"
+              "_NET_SUPPORTED")))
 
 (define (init-error-handler display)
   (set-x-error-handler! uwm-error-handler))
@@ -132,8 +133,8 @@
 
 (set! *internal-startup-hook* '(init-atoms
                                 init-error-handler
-                                load-user-config
                                 init-screens
+                                load-user-config
                                 setup-bindings
                                 pickup-windows))
 (set! *internal-loop-hook* '(x11-event-hook))
