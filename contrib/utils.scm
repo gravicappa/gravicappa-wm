@@ -100,10 +100,10 @@
     (shell-command "killall dzen2")
     (set! left-bar (bar 'left w/2 *bar-font*))
     (set! right-bar
-          (run-command (string-append "status | dzen2 -ta r"
-                                      " -tw " (number->string w/2)
-                                      " -x " (number->string w/2)
-                                      " -fn " *bar-font*)))))
+          (shell-command& (string-append "status | dzen2 -ta r"
+                                         " -tw " (number->string w/2)
+                                         " -x " (number->string w/2)
+                                         " -fn " *bar-font*)))))
 
 (define (update-tag-status)
   (let ((tags (collect-all-tags)))
