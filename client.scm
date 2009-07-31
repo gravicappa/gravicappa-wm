@@ -51,17 +51,17 @@
   (client-y-set! client (screen-y (client-screen client))))
 
 (define (hold-client-on-screen c)
-  (let ((hold (lambda (x w ax aw b)
-                (max ax
-                     (if (> (+ x w (* 2 b)) (+ ax aw))
-                         (- (+ ax aw) w)
-                         x))))
+  (let ((f (lambda (x w ax aw b)
+             (max ax
+                  (if (> (+ x w (* 2 b)) (+ ax aw))
+                      (- (+ ax aw) w)
+                      x))))
         (border (client-border c))
         (s (client-screen c)))
     (client-x-set!
-      c (hold (client-x c) (client-w c) (screen-x s) (screen-w s) border))
+      c (f (client-x c) (client-w c) (screen-x s) (screen-w s) border))
     (client-y-set!
-      c (hold (client-y c) (client-h c) (screen-y s) (screen-h s) border))))
+      c (f (client-y c) (client-h c) (screen-y s) (screen-h s) border))))
 
 (define (center-client-on-screen c)
   (let ((f (lambda (a1 a2 b1 b2)
