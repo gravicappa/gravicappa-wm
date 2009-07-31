@@ -1,7 +1,7 @@
 (include "~/develop/uwm/contrib/utils.scm")
 
-(define *border-color* #x070707)
-(define *selected-border-color* #xfdaf3e)
+(define *border-color* #x000000)
+(define *selected-border-color* #xb0f0b7)
 (define *border-width* 1)
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
@@ -9,11 +9,11 @@
 (define *bar-font* "-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")
 (define *bar-norm-bg-color* "black")
 (define *bar-norm-color* "gray")
-(define *bar-sel-bg-color* "#403010")
+(define *bar-sel-bg-color* "#104030")
 (define *bar-sel-color* "white")
 
 (define *dmenu-runner*
-  (string-append "`" (make-dmenu-command "Run:") "< ~/.proglist`"))
+  (string-append "`" (make-dmenu-command "Run:") "< ~/.programs`"))
 
 (update-tag-status)
 
@@ -35,6 +35,7 @@
 
 (define-key *top-map* (kbd "s-f") (lambda () (toggle-fullscreen)))
 (define-key *top-map* (kbd "s-m") (lambda () (tag *selected*)))
+(define-key *top-map* (kbd "s-u") (lambda () (untag *selected*)))
 (define-key *top-map* (kbd "s-t") (lambda () (view)))
 (define-key *top-map* (kbd "s-r") (lambda () (view-tag *prev-view*)))
 
@@ -60,5 +61,22 @@
             (lambda () (resize-client-by *selected* 0 -50 0 0)))
 (define-key *top-map* (kbd "s-S-l")
             (lambda () (resize-client-by *selected* 50 0 0 0)))
+
+(define-key *top-map* (kbd "XF86AudioRaiseVolume")
+            (lambda () (shell-command& "amixer set Master 2%+")))
+
+(define-key *top-map* (kbd "XF86AudioLowerVolume")
+            (lambda () (shell-command& "amixer set Master 2%-")))
+
+(define-key *top-map* (kbd "XF86Sleep")
+            (lambda () 
+              (shell-command& "sudo pm-suspend")))
+
+(define-key *top-map* (kbd "XF86AudioMute")
+            (lambda () (shell-command& "amixer set Master toggle")))
+
+(define-key *top-map* (kbd "XF86Sleep")
+            (lambda () 
+              (shell-command& "sudo pm-suspend")))
 
 (restart-bars)

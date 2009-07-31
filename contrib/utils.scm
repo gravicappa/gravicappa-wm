@@ -10,53 +10,49 @@
   (if fn
       (thread-send (current-thread) fn)))
 
+(define (dmenu-args title)
+  (list "-p" title
+        "-fn" *bar-font*
+        "-nb" *bar-norm-bg-color*
+        "-nf" *bar-norm-color*
+        "-sb" *bar-sel-bg-color*
+        "-sf" *bar-sel-color*))
+
 (define (make-dmenu-command title)
-  (let ((args `("-p" ,title
-                "-fn" ,*bar-font*
-                "-nb" ,*bar-norm-bg-color*
-                "-nf" ,*bar-norm-color*
-                "-sb" ,*bar-sel-bg-color*
-                "-sf" ,*bar-sel-color*)))
-    (with-output-to-string '()
-      (lambda ()
-        (display "dmenu")
-        (for-each (lambda (a) (display (string-append " \"" a "\"")))
-                  args)))))
+  (with-output-to-string '()
+    (lambda ()
+      (display "dmenu")
+      (for-each (lambda (a) (display (string-append " \"" a "\"")))
+                  (dmenu-args title)))))
 
 (define (dmenu title fn)
-  (let ((args `("-p" ,title
-                "-fn" ,*bar-font*
-                "-nb" ,*bar-norm-bg-color*
-                "-nf" ,*bar-norm-color*
-                "-sb" ,*bar-sel-bg-color*
-                "-sf" ,*bar-sel-color*)))
-    (with-exception-catcher
-      (lambda (e) #f)
-      (lambda ()
-        (let ((p #f))
-          (dynamic-wind
-            (lambda () 
-              (set! p (open-process `(path: "dmenu" arguments: ,args))))
-            (lambda ()
-              (if p
-                  (begin (for-each
-                           (lambda (line)
-                             (display line p)
-                             (newline p))
-                           (fn))
-                         (force-output p)
-                         (close-output-port p)
-                         (let ((ret (read-line p)))
-                           (if (eof-object? ret)
-                               #f
-                               ret)))))
-            (lambda () (if p (close-port p)))))))))
+  (with-exception-catcher
+    (lambda (e) #f)
+    (lambda ()
+      (let ((p #f))
+        (dynamic-wind
+          (lambda ()
+            (set! p (open-process `(path: "dmenu"
+                                    arguments: ,(dmenu-args title)))))
+          (lambda ()
+            (if p
+                (begin (for-each
+                         (lambda (line)
+                           (display line p)
+                           (newline p))
+                         (fn))
+                  (force-output p)
+                  (close-output-port p)
+                  (let ((ret (read-line p)))
+                    (if (eof-object? ret)
+                        #f
+                        ret)))))
+          (lambda () (if p (close-port p))))))))
 
 (define (shell-command& cmd)
-  (if cmd
+  (if (string? cmd)
       (thread-start!
-       (make-thread (lambda ()
-                      (shell-command (string-append cmd "&")))))))
+       (make-thread (lambda () (shell-command (string-append cmd "&")))))))
 
 (define (status fn args)
   (with-exception-catcher
@@ -130,35 +126,32 @@
 (define parse-tags
   (let ((split (make-splitter #\,)))
     (lambda (str)
-      (if str
-          (let ((tags (split str)))
-            (let loop ((tags tags)
-                       (+tags '())
-                       (-tags '()))
-              (if (pair? tags)
-                  (if (char=? #\- (string-ref (car tags) 0))
-                      (loop (cdr tags)
-                            +tags
-                            (cons (substring (car tags)
-                                             1
-                                             (string-length (car tags)))
-                                  -tags))
-                      (loop (cdr tags) (cons (car tags) +tags) -tags))
-                  (values +tags -tags))))
-          (values '() '())))))
+      (if (string? str)
+          (split str)
+          '()))))
+
+(define (update-client-tags c)
+  (run-hook *retag-hook*)
+  (run-hook *arrange-hook* (client-display c) (client-screen c)))
 
 (define (tag c)
   (if c
-      (call-with-values
-        (lambda ()
-          (parse-tags (dmenu "Tag client:" (lambda () (collect-all-tags)))))
-        (lambda (+tags -tags)
-          (to-run (lambda ()
-                    (tag-client c +tags)
-                    (untag-client c -tags)))))))
+      (let ((all-tags (collect-all-tags)))
+        (for-each
+          (lambda (t) (tag-client c t))
+          (parse-tags (dmenu "Tag client:" (lambda () all-tags))))
+        (update-client-tags c))))
+
+(define (untag c)
+  (if c
+      (begin
+        (for-each
+          (lambda (t) (untag-client c t))
+          (parse-tags (dmenu "Untag client:" (lambda () (client-tags c)))))
+        (update-client-tags c))))
 
 (define (view-tag tag)
-  (if tag
+  (if (string? tag)
       (begin
         (if (not (string=? *current-view* tag))
             (set! *prev-view* *current-view*))
@@ -171,15 +164,15 @@
   (if *selected*
       (cond
         ((string=? *current-view* ".")
-         (untag-client *selected* '("."))
+         (untag-client *selected* ".")
          (view-tag *prev-view*))
         (else
           (mass-untag-clients ".")
-          (tag-client *selected* (cons "." (client-tags *selected*)))
+          (tag-client *selected* ".")
           (view-tag ".")))))
 
 (define (eval-from-string str)
-  (if str
+  (if (string? str)
       (with-exception-catcher
         (lambda (e) #f)
         (lambda ()

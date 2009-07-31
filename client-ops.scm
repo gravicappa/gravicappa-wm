@@ -119,31 +119,38 @@
                       clients))
         clients)))
 
-(define (tag-client c tags)
-  ;; there are not many tags so using dumb algorithm
-  (when (and c (pair? tags))
-    (client-tags-set! c tags)
-    (run-hook *retag-hook*)
-    (run-hook *arrange-hook* (client-display c) (client-screen c))))
+(define (tag-client c tag)
+  (if (and c (string? tag))
+      (let ((tags (client-tags c)))
+        (if (not (member tag tags))
+            (begin
+              (client-tags-set! c (cons tag tags))
+              (run-hook *retag-hook*)
+              (run-hook *arrange-hook*
+                        (client-display c)
+                        (client-screen c)))))))
 
-(define (untag-client c tags)
-  (let ((new-tags (remove-if (lambda (t) (member t tags)) (client-tags c))))
+(define (untag-client c tag)
+  (let ((new-tags (remove-if (lambda (t) (string=? t tag)) (client-tags c))))
     (if (pair? new-tags)
-        (tag-client c new-tags))))
+        (begin
+          (client-tags-set! c new-tags)
+          (run-hook *retag-hook*)
+          (run-hook *arrange-hook* (client-display c) (client-screen c))))))
 
 (define (mass-untag-clients tag)
   (let ((clients (collect-tagged-clients tag)))
-    (for-each (lambda (c) (untag-client c (list tag))) clients)
+    (for-each (lambda (c) (untag-client c tag)) clients)
     (let ((s (current-screen)))
       (run-hook *retag-hook*)
       (run-hook *arrange-hook* (screen-display s) s))))
 
 (define (resize-client-by c dx dy dw dh)
   (when (and c (client-floating? c))
+    (client-x-set! c (+ (client-x c) dx))
+    (client-y-set! c (+ (client-y c) dy))
+    (client-w-set! c (+ (client-w c) dw))
+    (client-h-set! c (+ (client-h c) dh))
     (hold-client-on-screen c)
-    (resize-client c
-                   (+ (client-x c) dx)
-                   (+ (client-y c) dy)
-                   (+ (client-w c) dw)
-                   (+ (client-h c) dh))))
+    (resize-client c (client-x c) (client-y c) (client-w c) (client-h c))))
 
