@@ -1,7 +1,7 @@
 (define *bar-font* "-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")
 (define *bar-norm-bg-color* "black")
 (define *bar-norm-color* "gray")
-(define *bar-sel-bg-color* "#403010")
+(define *bar-sel-bg-color* "#440000")
 (define *bar-sel-color* "white")
 
 (define *prev-view* "")
@@ -18,6 +18,12 @@
         "-sb" *bar-sel-bg-color*
         "-sf" *bar-sel-color*))
 
+(define (dzen-args args)
+  (append (list "-bg" *bar-norm-bg-color*
+                "-fg" *bar-norm-color*
+                "-fn" *bar-font*)
+          args))
+
 (define (make-dmenu-command title)
   (with-output-to-string '()
     (lambda ()
@@ -29,18 +35,17 @@
   (with-exception-catcher
     (lambda (e) #f)
     (lambda ()
-      (let ((p #f))
+      (let ((p (open-process `(path: "dmenu"
+                               arguments: ,(dmenu-args title)))))
         (dynamic-wind
-          (lambda ()
-            (set! p (open-process `(path: "dmenu"
-                                    arguments: ,(dmenu-args title)))))
+          (lambda () #f)
           (lambda ()
             (if p
-                (begin (for-each
-                         (lambda (line)
-                           (display line p)
-                           (newline p))
-                         (fn))
+                (begin
+                  (for-each (lambda (line)
+                              (display line p)
+                              (newline p))
+                            (fn))
                   (force-output p)
                   (close-output-port p)
                   (let ((ret (read-line p)))
@@ -54,14 +59,13 @@
       (thread-start!
        (make-thread (lambda () (shell-command (string-append cmd "&")))))))
 
-(define (status fn args)
+(define (bar fn args)
   (with-exception-catcher
     (lambda (e) #f)
     (lambda ()
-      (let ((p #f))
+      (let ((p (open-process `(path: "dzen2" arguments: ,(dzen-args args)))))
         (dynamic-wind
-          (lambda () 
-            (set! p (open-process `(path: "dzen2" arguments: ,args))))
+          (lambda () #f)
           (lambda ()
             (if p
                 (let loop ()
@@ -74,19 +78,28 @@
                           (loop)))))))
           (lambda () (if p (close-port p))))))))
 
-(define (bar side width font)
-  (let* ((align (case side
-                  ((left) "l")
-                  ((right) "r")
-                  ((center) "c")))
-         (t (make-thread
-              (lambda ()
-                (status (lambda () (thread-receive))
-                        `("-ta" ,align
-                          "-fn" ,font
-                          "-tw" ,(number->string width)))))))
+(define (tag-bar align x width)
+  (let ((t (make-thread
+             (lambda ()
+               (bar thread-receive
+                    (list "-x" (number->string x)
+                          "-ta" align
+                          "-tw" (number->string width)))))))
     (thread-start! t)
     t))
+
+(define (status-process bar)
+  (thread-start!
+    (make-thread
+      (lambda ()
+        (let ((p (open-process "status")))
+          (let loop ()
+            (let ((line (read-line p)))
+              (if (eof-object? line)
+                  #f
+                  (begin
+                    (thread-send bar line)
+                    (loop))))))))))
 
 (define left-bar #f)
 (define right-bar #f)
@@ -94,12 +107,16 @@
 (define (restart-bars)
   (let ((w/2 (inexact->exact (round (/ (screen-w (current-screen)) 2)))))
     (shell-command "killall dzen2")
-    (set! left-bar (bar 'left w/2 *bar-font*))
-    (set! right-bar
-          (shell-command& (string-append "status | dzen2 -ta r"
-                                         " -tw " (number->string w/2)
-                                         " -x " (number->string w/2)
-                                         " -fn " *bar-font*)))))
+    (shell-command "killall status")
+    (set! left-bar (tag-bar "l" 0 w/2))
+    (set! right-bar (tag-bar "r" w/2 w/2))
+    (status-process right-bar)))
+
+(define (display-current-view tag)
+  (display (string-append "[" tag "]")))
+
+(define (display-previous-view tag)
+  (display (string-append "(" tag ")")))
 
 (define (update-tag-status)
   (let ((tags (collect-all-tags)))
@@ -108,12 +125,11 @@
           left-bar
           (with-output-to-string '()
             (lambda ()
-              (display (string-append *current-view* " |"))
+              (display (string-append *current-view* " | " *prev-view*))
               (for-each (lambda (t)
-                          (display " ")
-                          (if (string=? t *current-view*)
-                              (display (string-append "[" t "]"))
-                              (display t)))
+                          (if (not (or (string=? t *current-view*)
+                                       (string=? t *prev-view*)))
+                              (display (string-append " " t))))
                         tags)))))))
 
 (define (make-splitter sep)

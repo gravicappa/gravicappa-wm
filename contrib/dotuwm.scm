@@ -1,19 +1,20 @@
 (include "~/develop/uwm/contrib/utils.scm")
 
 (define *border-color* #x000000)
-(define *selected-border-color* #xb0f0b7)
+(define *selected-border-color* "#8888ff")
 (define *border-width* 1)
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
 
-(define *bar-font* "-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")
-(define *bar-norm-bg-color* "black")
-(define *bar-norm-color* "gray")
-(define *bar-sel-bg-color* "#104030")
+(define *bar-font* 
+        "-misc-fixed-medium-r-normal-*-13-120-75-75-c-70-iso10646-1")
+(define *bar-norm-bg-color* "#333333")
+(define *bar-norm-color* "#bbbbbb")
+(define *bar-sel-bg-color* "#444444")
 (define *bar-sel-color* "white")
 
 (define *dmenu-runner*
-  (string-append "`" (make-dmenu-command "Run:") "< ~/.programs`"))
+  (string-append "`" (make-dmenu-command "Run:") "< ~/.proglist`"))
 
 (update-tag-status)
 
@@ -61,22 +62,5 @@
             (lambda () (resize-client-by *selected* 0 -50 0 0)))
 (define-key *top-map* (kbd "s-S-l")
             (lambda () (resize-client-by *selected* 50 0 0 0)))
-
-(define-key *top-map* (kbd "XF86AudioRaiseVolume")
-            (lambda () (shell-command& "amixer set Master 2%+")))
-
-(define-key *top-map* (kbd "XF86AudioLowerVolume")
-            (lambda () (shell-command& "amixer set Master 2%-")))
-
-(define-key *top-map* (kbd "XF86Sleep")
-            (lambda () 
-              (shell-command& "sudo pm-suspend")))
-
-(define-key *top-map* (kbd "XF86AudioMute")
-            (lambda () (shell-command& "amixer set Master toggle")))
-
-(define-key *top-map* (kbd "XF86Sleep")
-            (lambda () 
-              (shell-command& "sudo pm-suspend")))
 
 (restart-bars)
