@@ -32,7 +32,8 @@
       (call-with-values
         (lambda () (client-edge client direction))
         (lambda (start end dist)
-          (find-client* start end dist in (opposite direction) 0 #f)))))
+          (find-client* start end dist in (opposite direction) 0 #f)))
+      #f))
 
 (define (focus-client direction #!optional (client *selected*))
   (if client
@@ -45,10 +46,9 @@
 (define (focus-previous)
   (if *selected*
       (let* ((v (filter client-visible?
-                        (screen-focus-stack (client-screen *selected*))))
-             (prev (cadr v)))
-        (if prev
-            (run-hook *focus-hook* (client-display prev) prev)))))
+                        (screen-focus-stack (client-screen *selected*)))))
+        (if (and (pair? (cdr v)) (cadr v))
+            (run-hook *focus-hook* (client-display (cadr prev)) (cadr prev))))))
 
 (define (find-client-after c clients)
   (let loop ((clients clients)
