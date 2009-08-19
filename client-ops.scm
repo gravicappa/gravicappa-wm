@@ -32,7 +32,8 @@
       (call-with-values
         (lambda () (client-edge client direction))
         (lambda (start end dist)
-          (find-client* start end dist in (opposite direction) 0 #f)))))
+          (find-client* start end dist in (opposite direction) 0 #f)))
+      #f))
 
 (define (focus-client direction #!optional (client *selected*))
   (if client
