@@ -6,7 +6,7 @@
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
 
-(define *bar-font* 
+(define *bar-font*
         "-misc-fixed-medium-r-normal-*-13-120-75-75-c-70-iso10646-1")
 (define *bar-norm-bg-color* "#333333")
 (define *bar-norm-color* "#bbbbbb")
@@ -14,7 +14,9 @@
 (define *bar-sel-color* "white")
 
 (define *dmenu-runner*
-  (string-append "`" (make-dmenu-command "Run:") "< ~/.proglist`"))
+  (string-append "`dmenu -p 'Run:' "
+                 (string<-args (dmenu-args))
+                 " < ~/.programs`"))
 
 (update-tag-status)
 
@@ -36,7 +38,9 @@
 
 (define-key *top-map* (kbd "s-f") (lambda () (toggle-fullscreen)))
 (define-key *top-map* (kbd "s-m") (lambda () (tag *selected*)))
-(define-key *top-map* (kbd "s-u") (lambda () (untag *selected*)))
+(define-key *top-map* (kbd "s-u") (lambda ()
+                                    (untag-client *selected* *current-view*)))
+(define-key *top-map* (kbd "s-v") (lambda () (move-tag *selected*)))
 (define-key *top-map* (kbd "s-t") (lambda () (view)))
 (define-key *top-map* (kbd "s-r") (lambda () (view-tag *prev-view*)))
 
@@ -64,3 +68,4 @@
             (lambda () (resize-client-by *selected* 50 0 0 0)))
 
 (restart-bars)
+(setenv "DMENU_ARGS" (string<-args (dmenu-args)))

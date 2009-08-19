@@ -10,9 +10,18 @@
   (if fn
       (thread-send (current-thread) fn)))
 
-(define (dmenu-args title)
-  (list "-p" title
-        "-fn" *bar-font*
+(define (string<-args args)
+  (let loop ((args args)
+             (acc '()))
+    (if (pair? args)
+        (loop (cdr args) (append (if (pair? (cdr args))
+                                     (list " " "'" (car args) "'")
+                                     (list "'" (car args) "'"))
+                                 acc))
+        (apply string-append (reverse acc)))))
+
+(define (dmenu-args)
+  (list "-fn" *bar-font*
         "-nb" *bar-norm-bg-color*
         "-nf" *bar-norm-color*
         "-sb" *bar-sel-bg-color*
@@ -25,18 +34,15 @@
           args))
 
 (define (make-dmenu-command title)
-  (with-output-to-string '()
-    (lambda ()
-      (display "dmenu")
-      (for-each (lambda (a) (display (string-append " \"" a "\"")))
-                  (dmenu-args title)))))
+  (pp `(dmenu: ,(string-append "dmenu -p '" title "' " (string<-args (dmenu-args)))))
+  (string-append "dmenu -p '" title "' " (string<-args (dmenu-args))))
 
 (define (dmenu title fn)
   (with-exception-catcher
     (lambda (e) #f)
     (lambda ()
       (let ((p (open-process `(path: "dmenu"
-                               arguments: ,(dmenu-args title)))))
+                               arguments: ("-p" ,title ,@(dmenu-args))))))
         (dynamic-wind
           (lambda () #f)
           (lambda ()
@@ -147,8 +153,10 @@
           '()))))
 
 (define (update-client-tags c)
-  (run-hook *retag-hook*)
-  (run-hook *arrange-hook* (client-display c) (client-screen c)))
+  (if c
+      (begin
+        (run-hook *retag-hook*)
+        (run-hook *arrange-hook* (client-display c) (client-screen c)))))
 
 (define (tag c)
   (if c
@@ -164,6 +172,16 @@
         (for-each
           (lambda (t) (untag-client c t))
           (parse-tags (dmenu "Untag client:" (lambda () (client-tags c)))))
+        (update-client-tags c))))
+
+(define (move-tag c)
+  (if c
+      (let ((all-tags (collect-all-tags))
+            (prev-tags (client-tags c)))
+        (for-each
+          (lambda (t) (tag-client c t))
+          (parse-tags (dmenu "Move client:" (lambda () all-tags))))
+        (for-each (lambda (t) (untag-client c t)) prev-tags)
         (update-client-tags c))))
 
 (define (view-tag tag)
