@@ -1,6 +1,6 @@
 (define *x11-event-dispatcher* (make-table))
 
-(define +debug-events+ #t)
+(define +debug-events+ (make-parameter #f))
 
 (define (display-log . args)
   (let ((port (current-error-port)))
@@ -126,7 +126,7 @@
              ,@(if (find 'ev args)
                    `((ev ,ev))
                    '()))
-         (when +debug-events+
+         (when (+debug-events+)
            (log-x-event ',event ,ev))
          ,@body))))
 

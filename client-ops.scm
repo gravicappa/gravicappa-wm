@@ -44,11 +44,10 @@
 
 (define (focus-previous)
   (if *selected*
-      (let* ((v (filter client-visible?
-                        (screen-focus-stack (client-screen *selected*))))
-             (prev (cadr v)))
-        (if prev
-            (run-hook *focus-hook* (client-display prev) prev)))))
+      (let ((v (filter client-visible?
+                       (screen-focus-stack (client-screen *selected*)))))
+        (if (and (pair? (cdr v)) (cadr v))
+            (run-hook *focus-hook* (client-display (cadr v)) (cadr v))))))
 
 (define (find-client-after c clients)
   (let loop ((clients clients)
