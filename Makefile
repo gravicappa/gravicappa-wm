@@ -5,7 +5,7 @@ version = HEAD
 GSC = gambit-gsc
 GSC_FLAGS = -ld-options "-lX11"
 CC = gcc
-SRC = main.scm xlib/Xlib.scm
+SRC = xlib/Xlib.scm main.scm
 
 .PHONY: all clean clean-obj xlib
 
