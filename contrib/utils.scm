@@ -10,89 +10,10 @@
   (if fn
       (thread-send (current-thread) fn)))
 
-(define (string<-args args)
-  (let loop ((args args)
-             (acc '()))
-    (if (pair? args)
-        (loop (cdr args) (append (if (pair? (cdr args))
-                                     (list " " "'" (car args) "'")
-                                     (list "'" (car args) "'"))
-                                 acc))
-        (apply string-append (reverse acc)))))
-
-(define (dmenu-args)
-  (list "-fn" *bar-font*
-        "-nb" *bar-norm-bg-color*
-        "-nf" *bar-norm-color*
-        "-sb" *bar-sel-bg-color*
-        "-sf" *bar-sel-color*))
-
-(define (dzen-args args)
-  (append (list "-bg" *bar-norm-bg-color*
-                "-fg" *bar-norm-color*
-                "-fn" *bar-font*)
-          args))
-
-(define (make-dmenu-command title)
-  (pp `(dmenu: ,(string-append "dmenu -p '" title "' " (string<-args (dmenu-args)))))
-  (string-append "dmenu -p '" title "' " (string<-args (dmenu-args))))
-
-(define (dmenu title fn)
-  (with-exception-catcher
-    (lambda (e) #f)
-    (lambda ()
-      (let ((p (open-process `(path: "dmenu"
-                               arguments: ("-p" ,title ,@(dmenu-args))))))
-        (dynamic-wind
-          (lambda () #f)
-          (lambda ()
-            (if p
-                (begin
-                  (for-each (lambda (line)
-                              (display line p)
-                              (newline p))
-                            (fn))
-                  (force-output p)
-                  (close-output-port p)
-                  (let ((ret (read-line p)))
-                    (if (eof-object? ret)
-                        #f
-                        ret)))))
-          (lambda () (if p (close-port p))))))))
-
 (define (shell-command& cmd)
   (if (string? cmd)
       (thread-start!
        (make-thread (lambda () (shell-command (string-append cmd "&")))))))
-
-(define (bar fn args)
-  (with-exception-catcher
-    (lambda (e) #f)
-    (lambda ()
-      (let ((p (open-process `(path: "dzen2" arguments: ,(dzen-args args)))))
-        (dynamic-wind
-          (lambda () #f)
-          (lambda ()
-            (if p
-                (let loop ()
-                  (let ((line (fn)))
-                    (if line
-                        (begin
-                          (display line p)
-                          (newline p)
-                          (force-output p)
-                          (loop)))))))
-          (lambda () (if p (close-port p))))))))
-
-(define (tag-bar align x width)
-  (let ((t (make-thread
-             (lambda ()
-               (bar thread-receive
-                    (list "-x" (number->string x)
-                          "-ta" align
-                          "-tw" (number->string width)))))))
-    (thread-start! t)
-    t))
 
 (define (status-process bar)
   (thread-start!
@@ -106,17 +27,6 @@
                   (begin
                     (thread-send bar line)
                     (loop))))))))))
-
-(define left-bar #f)
-(define right-bar #f)
-
-(define (restart-bars)
-  (let ((w/2 (inexact->exact (round (/ (screen-w (current-screen)) 2)))))
-    (shell-command "killall dzen2")
-    (shell-command "killall status")
-    (set! left-bar (tag-bar "l" 0 w/2))
-    (set! right-bar (tag-bar "r" w/2 w/2))
-    (status-process right-bar)))
 
 (define (display-current-view tag)
   (display (string-append "[" tag "]")))
@@ -190,9 +100,6 @@
         (if (not (string=? *current-view* tag))
             (set! *prev-view* *current-view*))
         (to-run (lambda () (view-clients tag))))))
-
-(define (view)
-  (view-tag (dmenu "View:" (lambda () (collect-all-tags)))))
 
 (define (toggle-fullscreen)
   (if *selected*

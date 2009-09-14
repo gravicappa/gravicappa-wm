@@ -1,4 +1,6 @@
 (include "~/develop/uwm/contrib/utils.scm")
+(include "~/develop/uwm/contrib/dmenu.scm")
+(include "~/develop/uwm/contrib/dzen-bars.scm")
 
 (define *border-color* #x000000)
 (define *selected-border-color* "#8888ff")
@@ -6,26 +8,23 @@
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
 
-(define *bar-font*
-        "-misc-fixed-medium-r-normal-*-13-120-75-75-c-70-iso10646-1")
+(define *bar-font* "-*-fixed-medium-r-*-*-13-*-*-*-*-*-iso10646-1")
 (define *bar-norm-bg-color* "#333333")
 (define *bar-norm-color* "#bbbbbb")
 (define *bar-sel-bg-color* "#444444")
 (define *bar-sel-color* "white")
 
-(define *dmenu-runner*
-  (string-append "`dmenu -p 'Run:' "
-                 (string<-args (dmenu-args))
-                 " < ~/.programs`"))
-
 (update-tag-status)
 
 (add-hook *retag-hook* 'update-tag-status)
 
+(define (view)
+  (view-tag (dmenu "View:" (lambda () (collect-all-tags)))))
+
 (define-key *top-map* (kbd "s-x s-c") (lambda () (exit)))
 (define-key *top-map* (kbd "s-x s-l") (lambda () (load *user-config-file*)))
 (define-key *top-map* (kbd "s-RET") (lambda () (shell-command& "xterm")))
-(define-key *top-map* (kbd "s-p") (lambda () (shell-command& *dmenu-runner*)))
+(define-key *top-map* (kbd "s-p") dmenu-run)
 (define-key *top-map* (kbd "s-c") (lambda () (kill-client *selected*)))
 (define-key *top-map* (kbd "s-h") (lambda () (focus-client 'left)))
 (define-key *top-map* (kbd "s-j") (lambda () (focus-client 'down)))
@@ -40,7 +39,6 @@
 (define-key *top-map* (kbd "s-m") (lambda () (tag *selected*)))
 (define-key *top-map* (kbd "s-u") (lambda ()
                                     (untag-client *selected* *current-view*)))
-(define-key *top-map* (kbd "s-v") (lambda () (move-tag *selected*)))
 (define-key *top-map* (kbd "s-t") (lambda () (view)))
 (define-key *top-map* (kbd "s-r") (lambda () (view-tag *prev-view*)))
 
