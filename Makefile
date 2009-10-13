@@ -14,11 +14,14 @@ all: ${executable}
 clean: clean-obj
 	-rm *.c *.o ${executable}
 
-${executable}: ${SRC} ${GAMBIT_LIB}
+${executable}: ${SRC} ${GAMBIT_LIB} xlib/Xlib\#.scm
 	${GSC} ${GSC_FLAGS} -exe -o $@ ${SRC}
 
 xlib:
 	make -C xlib
+
+xlib/Xlib\#.scm:
+	make -C xlib Xlib\#.scm
 
 clean-obj:
 	-rm *.o* 2> /dev/null
