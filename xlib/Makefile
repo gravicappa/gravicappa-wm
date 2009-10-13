@@ -7,13 +7,12 @@ GSCFLAGS= -ld-options "${LDFLAGS}"
 all: Xlib.o1
 
 clean: clean-obj
-	-rm 'Xlib#.scm'
 
 clean-obj:
 	-rm *.o* 2> /dev/null
 
 clean-generated:
-	-rm ${generated}
+	-rm ${generated} Xlib\#.scm
 
 events: Xlib-events\#.scm
 accessors: Xlib-accessors\#.scm
@@ -28,7 +27,7 @@ Xlib-accessors\#.scm:	x-struct
 Xlib-constants\#.scm:	
 	./make-constants > $@
 
-Xlib\#.scm: Xlib.scm ${generated}
+Xlib\#.scm: Xlib.scm
 	cat Xlib.scm ${generated} | ./make-gambit-include 'Xlib#' > $@
 
 Xlib.o1: Xlib.scm ${generated} Xlib\#.scm
