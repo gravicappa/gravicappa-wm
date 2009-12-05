@@ -1,35 +1,48 @@
-generated = Xlib-events\#.scm Xlib-accessors\#.scm Xlib-constants\#.scm
-LDFLAGS = -lX11
-GSCFLAGS= -ld-options "${LDFLAGS}"
+name = xlib
+namespace = x
+namespace_def = xlib\#.scm
+
+sources = xlib.scm
+targets = ${sources:%.scm=%.o1}
+
+generated = xlib-events%.scm xlib-accessors%.scm xlib-constants%.scm
+LDFLAGS += -lX11
+
+GSC = ${shell [ `which gambit-gsc 2>/dev/null` ] && echo gambit-gsc || echo gsc}
 
 .PHONY: all clean clean-obj events clean-generated
 
-all: Xlib.o1
+all: build ${namespace_def}
+
+%.o1: %.scm
+	${GSC} ${GSCFLAGS} -cc-options "${CFLAGS}" -ld-options "${LDFLAGS}" $<
+
+build: ${targets}
+
+${namespace_def}: ${sources} ${generated}
+	cat $^ | ./make-include ${namespace} > $@
+
+clean:
+	-rm *.o*
 
 clean: clean-obj
 
-clean-obj:
-	-rm *.o* 2> /dev/null
-
 clean-generated:
-	-rm ${generated} Xlib\#.scm
+	-rm -f *%.scm
 
-events: Xlib-events\#.scm
-accessors: Xlib-accessors\#.scm
-constants: Xlib-constants\#.scm
+events: xlib-events%.scm
+accessors: xlib-accessors%.scm
+constants: xlib-constants%.scm
 
-Xlib-events\#.scm: /usr/include/X11/Xlib.h
-	./make-xlib-events > 'Xlib-events#.scm'
+xlib-events%.scm: /usr/include/X11/Xlib.h
+	./make-xlib-events > $@
 	
-Xlib-accessors\#.scm:	x-struct
+xlib-accessors%.scm:	x-struct
 	./make-accessors < $< > $@
 
-Xlib-constants\#.scm:	
+xlib-constants%.scm:	
 	./make-constants > $@
 
-Xlib\#.scm: Xlib.scm
-	cat Xlib.scm ${generated} | ./make-gambit-include 'Xlib#' > $@
-
-Xlib.o1: Xlib.scm ${generated} Xlib\#.scm
-	-rm Xlib.o* 2>/dev/null
-	gambit-gsc -ld-options "-lX11" Xlib.scm
+xlib.o1: xlib.scm ${generated} xlib\#.scm
+	-rm xlib.o* 2>/dev/null
+	gambit-gsc -ld-options "-lX11" xlib.scm

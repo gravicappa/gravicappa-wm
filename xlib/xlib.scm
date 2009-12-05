@@ -7,16 +7,14 @@
 ;;;       still memory leaks in the interface.
 ;;;============================================================================
 
-(namespace ("Xlib#"))
-
-(##include "~~/lib/gambit#.scm")
-(include "Xlib#.scm")
-
 (declare
   (standard-bindings)
   (extended-bindings)
   (block)
   (not safe))
+
+(namespace ("x#"))
+(##include "~~/lib/gambit#.scm")
 
 (define-macro (%eval-at-macroexpand expr)
   (eval expr)
@@ -100,13 +98,13 @@
         (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
         (mask-var (gensym)))
     `(define (,name ,@(map car args) #!key ,@lambda-key-args)
-       (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
-         ((c-lambda ,types ,type ,c-body)
-          ,@(map car args)
-          ,mask-var
-          ,@(map (lambda (a)
-                   `(%provided-value ,(car a) ,(%get-default-value a)))
-                 key-args))))))
+      (let ((,mask-var (bitwise-ior ,@(%make-provided-mask key-args))))
+        ((c-lambda ,types ,type ,c-body)
+         ,@(map car args)
+         ,mask-var
+         ,@(map (lambda (a)
+                  `(%provided-value ,(car a) ,(%get-default-value a)))
+                key-args))))))
 
 (define-macro (%define/x-pstruct-getter name args type code)
   (let ((ret-type (string->symbol (string-append type "*/release-rc"))))
@@ -157,7 +155,6 @@
 (c-declare #<<end-of-c-declare
 
 #define debug_free_not
-#define really_free
 
 #ifdef debug_free
 #include <stdio.h>
@@ -171,9 +168,7 @@ XFree_GC(void *ptr)
   printf("XFree_GC(%p)\n", p);
   fflush(stdout);
 #endif
-#ifdef really_free
   XFree(p);
-#endif
   return ___FIX(___NO_ERR);
 }
 
@@ -194,9 +189,9 @@ end-of-c-declare
 (%define/x-object "XWindowAttributes" "release-rc")
 (%define/x-object "XSizeHints" "release-rc")
 
-(include "Xlib-constants#.scm")
-(include "Xlib-events#.scm")
-(include "Xlib-accessors#.scm")
+(include "xlib-constants%.scm")
+(include "xlib-events%.scm")
+(include "xlib-accessors%.scm")
 
 (define x-client-message-event-data-l
   (c-lambda (XEvent* int)
@@ -208,7 +203,7 @@ end-of-c-declare
             void
             "___arg1->xclient.data.l[___arg2] = ___arg3;"))
 
-(define (default-error-handler display ev)
+(define (x-default-error-handler display ev)
   (let ((request-code (char->integer (x-error-event-request-code ev)))
         (error-code (char->integer (x-error-event-error-code ev))))
     (error (string-append "Xlib: error request-code:"
@@ -216,9 +211,9 @@ end-of-c-declare
                           " error-code: "
                           (number->string error-code)))))
 
-(define error-handler default-error-handler)
+(define x-error-handler x-default-error-handler)
 
-(c-define (scheme-x-error-handler display ev)
+(c-define (x-scheme-error-handler display ev)
           (Display* XEvent*)
           int
           "scheme_x_error_handler"
@@ -226,14 +221,14 @@ end-of-c-declare
           (error-handler display ev)
           0)
 
-(define x-set-error-handler
+(define x-set-error-handler!
   (c-lambda ((function (Display* XEvent*) int))
             (pointer "void")
             "XSetErrorHandler"))
 
 (define (set-x-error-handler! fn)
   (set! error-handler fn)
-  (x-set-error-handler scheme-x-error-handler)
+  (x-set-error-handler! x-scheme-error-handler)
   (void))
 
 (define x-size-hints-min-aspect-x
@@ -248,127 +243,74 @@ end-of-c-declare
 (define x-size-hints-max-aspect-y
   (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.y;"))
 
-(define x-open-display
-  (c-lambda (char*)        ;; display_name
-            Display*/XFree
-            "XOpenDisplay"))
+(define x-open-display 
+  (c-lambda (char*) Display*/XFree "XOpenDisplay"))
 
 (define x-close-display
-  (c-lambda (Display*)     ;; display
-            int
-            "XCloseDisplay"))
+  (c-lambda (Display*) int "XCloseDisplay"))
 
-(define x-grab-server
-  (c-lambda (Display*)
-            int
-            "XGrabServer"))
+(define x-grab-server 
+  (c-lambda (Display*) int "XGrabServer"))
 
 (define x-ungrab-server
-  (c-lambda (Display*)
-            int
-            "XUngrabServer"))
+  (c-lambda (Display*) int "XUngrabServer"))
 
 (define x-display-width
-  (c-lambda (Display* int)
-            int
-            "DisplayWidth"))
+  (c-lambda (Display* int) int "DisplayWidth"))
 
 (define x-display-height
-  (c-lambda (Display* int)
-            int
-            "DisplayHeight"))
+  (c-lambda (Display* int) int "DisplayHeight"))
 
 (define x-default-screen
-  (c-lambda (Display*)     ;; display
-            int
-            "XDefaultScreen"))
+  (c-lambda (Display*) int "XDefaultScreen"))
 
 (define x-screen-count
-  (c-lambda (Display*)     ;; display
-            int
-            "ScreenCount"))
+  (c-lambda (Display*) int "ScreenCount"))
 
 (define x-screen-of-display
-  (c-lambda (Display*      ;; display
-             int)          ;; screen_number
-            Screen*
-            "XScreenOfDisplay"))
+  (c-lambda (Display* int) Screen* "XScreenOfDisplay"))
 
 (define x-default-colormap-of-screen
-  (c-lambda (Screen*)      ;; screen
-            Colormap
-            "XDefaultColormapOfScreen"))
+  (c-lambda (Screen*) Colormap "XDefaultColormapOfScreen"))
 
 (define x-clear-window
-  (c-lambda (Display*      ;; display
-             Window)       ;; w
-            int
-            "XClearWindow"))
+  (c-lambda (Display* Window) int "XClearWindow"))
 
 (define x-connection-number
-  (c-lambda (Display*)     ;; display
-            int
-            "XConnectionNumber"))
+  (c-lambda (Display*) int "XConnectionNumber"))
 
 (define x-root-window
-  (c-lambda (Display*      ;; display
-             int)          ;; screen_number
-            Window
-            "XRootWindow"))
+  (c-lambda (Display* int) Window "XRootWindow"))
 
 (define x-default-root-window
-  (c-lambda (Display*)     ;; display
-            Window
-            "XDefaultRootWindow"))
+  (c-lambda (Display*) Window "XDefaultRootWindow"))
 
 (define x-root-window-of-screen
-  (c-lambda (Screen*)      ;; screen
-            Window
-            "XRootWindowOfScreen"))
+  (c-lambda (Screen*) Window "XRootWindowOfScreen"))
 
 (define x-default-visual
-  (c-lambda (Display*      ;; display
-             int)          ;; screen_number
-            Visual*/XFree
-            "XDefaultVisual"))
+  (c-lambda (Display* int) Visual*/XFree "XDefaultVisual"))
 
 (define x-default-visual-of-screen
-  (c-lambda (Screen*)      ;; screen
-            Visual*/XFree
-            "XDefaultVisualOfScreen"))
+  (c-lambda (Screen*) Visual*/XFree "XDefaultVisualOfScreen"))
 
 (define x-intern-atom
-  (c-lambda (Display* char-string Bool)
-            Atom
-            "XInternAtom"))
+  (c-lambda (Display* char-string Bool) Atom "XInternAtom"))
 
 (define x-get-atom-name
-  (c-lambda (Display* Atom)
-            char-string
-            "XGetAtomName"))
+  (c-lambda (Display* Atom) char-string "XGetAtomName"))
 
 (define x-default-gc
-  (c-lambda (Display*      ;; display
-             int)          ;; screen_number
-            GC/XFree
-            "XDefaultGC"))
+  (c-lambda (Display* int) GC/XFree "XDefaultGC"))
 
 (define x-default-gc-of-screen
-  (c-lambda (Screen*)      ;; screen
-            GC/XFree
-            "XDefaultGCOfScreen"))
+  (c-lambda (Screen*) GC/XFree "XDefaultGCOfScreen"))
 
 (define x-black-pixel
-  (c-lambda (Display*       ;; display
-             int)           ;; screen_number
-            unsigned-long
-            "XBlackPixel"))
+  (c-lambda (Display* int) unsigned-long "XBlackPixel"))
 
 (define x-white-pixel
-  (c-lambda (Display*       ;; display
-             int)           ;; screen_number
-            unsigned-long
-            "XWhitePixel"))
+  (c-lambda (Display* int) unsigned-long "XWhitePixel"))
 
 (define x-create-simple-window
   (c-lambda (Display*       ;; display
@@ -384,27 +326,16 @@ end-of-c-declare
             "XCreateSimpleWindow"))
 
 (define x-map-window
-  (c-lambda (Display*       ;; display
-             Window)        ;; w
-            int
-            "XMapWindow"))
+  (c-lambda (Display* Window) int "XMapWindow"))
 
 (define x-kill-client
-  (c-lambda (Display*
-             XID)
-            int
-            "XKillClient"))
+  (c-lambda (Display* XID) int "XKillClient"))
 
 (define x-flush
-  (c-lambda (Display*)      ;; display
-            int
-            "XFlush"))
+  (c-lambda (Display*) int "XFlush"))
 
 (define x-sync
-  (c-lambda (Display*
-             bool)
-            int
-            "XSync"))
+  (c-lambda (Display* bool) int "XSync"))
 
 (define x-grab-key
   (c-lambda (Display* int unsigned-int Window bool int int)
@@ -412,14 +343,10 @@ end-of-c-declare
             "XGrabKey"))
 
 (define x-ungrab-key
-  (c-lambda (Display* int unsigned-int Window)
-            int
-            "XUngrabKey"))
+  (c-lambda (Display* int unsigned-int Window) int "XUngrabKey"))
 
 (define x-grab-keyboard
-  (c-lambda (Display* Window bool int int Time)
-            int
-            "XGrabKeyboard"))
+  (c-lambda (Display* Window bool int int Time) int "XGrabKeyboard"))
 
 (define x-ungrab-keyboard
   (c-lambda (Display* Time)
@@ -427,29 +354,19 @@ end-of-c-declare
             "XUngrabKeyboard"))
 
 (define x-keysym-to-keycode
-  (c-lambda (Display* KeySym)
-            KeyCode
-            "XKeysymToKeycode"))
+  (c-lambda (Display* KeySym) KeyCode "XKeysymToKeycode"))
 
 (define x-keycode-to-keysym
-  (c-lambda (Display* KeyCode int)
-            KeySym
-            "XKeycodeToKeysym"))
+  (c-lambda (Display* KeyCode int) KeySym "XKeycodeToKeysym"))
 
 (define x-keysym-to-string
-  (c-lambda (KeySym)
-            char-string
-            "XKeysymToString"))
+  (c-lambda (KeySym) char-string "XKeysymToString"))
 
 (define x-string-to-keysym
-  (c-lambda (char-string)
-            KeySym
-            "XStringToKeysym"))
+  (c-lambda (char-string) KeySym "XStringToKeysym"))
 
 (define x-ungrab-button
-  (c-lambda (Display* int unsigned-int Window)
-            int
-            "XUngrabButton"))
+  (c-lambda (Display* int unsigned-int Window) int "XUngrabButton"))
 
 (define x-grab-button
   (c-lambda (Display*
@@ -466,10 +383,7 @@ end-of-c-declare
             "XGrabButton"))
 
 (define x-create-gc
-  (c-lambda (Display*       ;; display
-             Drawable       ;; d
-             unsigned-long  ;; valuemask
-             XGCValues*)    ;; values
+  (c-lambda (Display* Drawable unsigned-long XGCValues*)
             GC/XFree
             "XCreateGC"))
 
@@ -596,14 +510,10 @@ end-of-c-declare
             "___result = ___arg1->descent;"))
 
 (define x-refresh-keyboard-mapping
-  (c-lambda (XEvent*)
-            int
-            "XRefreshKeyboardMapping"))
+  (c-lambda (XEvent*) int "XRefreshKeyboardMapping"))
 
 (define x-pending
-  (c-lambda (Display*)     ;; display
-            int
-            "XPending"))
+  (c-lambda (Display*) int "XPending"))
 
 (define x-check-mask-event
   (c-lambda (Display*       ;; display
@@ -759,16 +669,10 @@ end-of-lambda
             "))
 
 (define x-allow-events
-  (c-lambda (Display* int Time)
-            int
-            "XAllowEvents"))
+  (c-lambda (Display* int Time) int "XAllowEvents"))
 
 (define x-select-input
-  (c-lambda (Display*       ;; display
-             Window         ;; w
-             long)          ;; event_mask
-            int
-            "XSelectInput"))
+  (c-lambda (Display* Window long) int "XSelectInput"))
 
 (define (make-x-event-box)
   ((c-lambda ()
@@ -796,20 +700,22 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(%define/x-pstruct-getter x-get-window-attributes
-                          (Display* Window)
-                          "XWindowAttributes"
-                          "XGetWindowAttributes(___arg1, ___arg2, &data);")
+(%define/x-pstruct-getter
+  x-get-window-attributes
+  (Display* Window)
+  "XWindowAttributes"
+  "XGetWindowAttributes(___arg1, ___arg2, &data);")
 
-(%define/x-pstruct-getter x-get-wm-normal-hints
-                          (Display* Window)
-                          "XSizeHints"
-                          "long msize;
-                          if(!XGetWMNormalHints(___arg1,
-                                                ___arg2,
-                                                &data,
-                                                &msize))
-                            data.flags = PSize;")
+(%define/x-pstruct-getter
+  x-get-wm-normal-hints
+  (Display* Window)
+  "XSizeHints"
+  "long msize;
+   if(!XGetWMNormalHints(___arg1,
+                         ___arg2,
+                         &data,
+                         &msize))
+      data.flags = PSize;")
 
 (define x-change-property-atoms
   (c-lambda (Display* Window Atom scheme-object)
@@ -986,9 +892,7 @@ end-of-lambda
             "XMoveResizeWindow"))
 
 (define x-move-window
-  (c-lambda (Display* Window int int)
-            int
-            "XMoveWindow"))
+  (c-lambda (Display* Window int int) int "XMoveWindow"))
 
 (define x-resize-window
   (c-lambda (Display* Window unsigned-int unsigned-int)
@@ -996,76 +900,74 @@ end-of-lambda
             "XResizeWindow"))
 
 (define x-raise-window
-  (c-lambda (Display* Window)
-            int
-            "XRaiseWindow"))
+  (c-lambda (Display* Window) int "XRaiseWindow"))
 
-(%define/x-setter x-configure-window
-                  ((display Display*)
-                   (window Window))
-                  ((x int)
-                   (y int)
-                   (width int)
-                   (height int)
-                   (border-width int)
-                   (sibling Window)
-                   (stack-mode int))
-                  int
-                  "
-                  XWindowChanges wc;
-                  wc.x = ___arg4;
-                  wc.y = ___arg5;
-                  wc.width = ___arg6;
-                  wc.height = ___arg7;
-                  wc.border_width = ___arg8;
-                  wc.sibling = ___arg9;
-                  wc.stack_mode = ___arg10;
-                  ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);
-                  ")
+(%define/x-setter
+  x-configure-window
+  ((display Display*)
+   (window Window))
+  ((x int)
+   (y int)
+   (width int)
+   (height int)
+   (border-width int)
+   (sibling Window)
+   (stack-mode int))
+  int
+  "
+   XWindowChanges wc;
+   wc.x = ___arg4;
+   wc.y = ___arg5;
+   wc.width = ___arg6;
+   wc.height = ___arg7;
+   wc.border_width = ___arg8;
+   wc.sibling = ___arg9;
+   wc.stack_mode = ___arg10;
+   ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);")
 
-(%define/x-setter x-change-window-attributes
-                  ((display Display*)
-                   (window Window))
-                  ((background-pixmap Pixmap)
-                   (background-pixel unsigned-long)
-                   (border-pixmap Pixmap)
-                   (border-pixel unsigned-long)
-                   (bit-gravity int)
-                   (win-gravity int)
-                   (backing-store int)
-                   (backing-planes unsigned-long)
-                   (backing-pixel unsigned-long)
-                   (override-redirect Bool)
-                   (save-under Bool)
-                   (event-mask long)
-                   (do-not-propagate-mask long)
-                   (colormap Colormap)
-                   (cursor Cursor))
-                  int
-                  "
-                  XSetWindowAttributes wa;
-                  wa.background_pixmap = ___arg4;
-                  wa.background_pixel = ___arg5;
-                  wa.border_pixmap = ___arg6;
-                  wa.border_pixel = ___arg7;
-                  wa.bit_gravity = ___arg8;
-                  wa.win_gravity = ___arg9;
-                  wa.backing_store = ___arg10;
-                  wa.backing_planes = ___arg11;
-                  wa.backing_pixel = ___arg12;
-                  wa.override_redirect = ___arg13;
-                  wa.save_under = ___arg14;
-                  wa.event_mask = ___arg15;
-                  wa.do_not_propagate_mask = ___arg16;
-                  wa.colormap = ___arg17;
-                  wa.cursor = ___arg18;
-                  ___result = XChangeWindowAttributes(___arg1,
-                                                      ___arg2,
-                                                      ___arg3,
-                                                      &wa);
-                  ")
+(%define/x-setter
+  x-change-window-attributes
+  ((display Display*)
+   (window Window))
+  ((background-pixmap Pixmap)
+   (background-pixel unsigned-long)
+   (border-pixmap Pixmap)
+   (border-pixel unsigned-long)
+   (bit-gravity int)
+   (win-gravity int)
+   (backing-store int)
+   (backing-planes unsigned-long)
+   (backing-pixel unsigned-long)
+   (override-redirect Bool)
+   (save-under Bool)
+   (event-mask long)
+   (do-not-propagate-mask long)
+   (colormap Colormap)
+   (cursor Cursor))
+  int
+  "
+   XSetWindowAttributes wa;
+   wa.background_pixmap = ___arg4;
+   wa.background_pixel = ___arg5;
+   wa.border_pixmap = ___arg6;
+   wa.border_pixel = ___arg7;
+   wa.bit_gravity = ___arg8;
+   wa.win_gravity = ___arg9;
+   wa.backing_store = ___arg10;
+   wa.backing_planes = ___arg11;
+   wa.backing_pixel = ___arg12;
+   wa.override_redirect = ___arg13;
+   wa.save_under = ___arg14;
+   wa.event_mask = ___arg15;
+   wa.do_not_propagate_mask = ___arg16;
+   wa.colormap = ___arg17;
+   wa.cursor = ___arg18;
+   ___result = XChangeWindowAttributes(___arg1,
+                                       ___arg2,
+                                       ___arg3,
+                                       &wa);")
 
-(define (call-with-x11-events x11-display fn)
+(define (x-call-with-x11-events x11-display fn)
   (let* ((x11-display-fd (x-connection-number x11-display))
          (x11-display-port (##open-predefined 1
                                               '(X11-display)

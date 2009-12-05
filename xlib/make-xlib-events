@@ -52,8 +52,8 @@ make_event_accessor() {
 
 !
 
-	cat << ! | expand -t2 
-(define ${accessor}-set!
+	cat << ! | sed 's/!?/!/' | expand -t2 
+(define set-${accessor}!
   (c-lambda (XEvent* $type)
 	          void
 	          "___arg1->$ev_field.$field = ___arg2;"))

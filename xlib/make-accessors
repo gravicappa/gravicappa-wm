@@ -31,8 +31,8 @@ make_struct_accessor() {
 
 !
 
-	cat << ! | expand -t2 
-(define ${accessor}-set!
+	cat << ! | sed 's/?!/!/' | expand -t2 
+(define set-${accessor}!
   (c-lambda ($st* $type)
 					  void
 	          "___arg1->$field = ___arg2;"))
