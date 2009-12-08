@@ -1,10 +1,5 @@
-(define *bar-font* "-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1")
-(define *bar-norm-bg-color* "black")
-(define *bar-norm-color* "gray")
-(define *bar-sel-bg-color* "#440000")
-(define *bar-sel-color* "white")
-
 (define *prev-view* "")
+(define *tags-fifo* (string-append "~/tmp/tags" (getenv "DISPLAY")))
 
 (define (to-run fn)
   (if fn
@@ -13,103 +8,57 @@
 (define (shell-command& cmd)
   (if (string? cmd)
       (thread-start!
-       (make-thread (lambda () (shell-command (string-append cmd "&")))))))
-
-(define (status-process bar)
-  (thread-start!
-    (make-thread
-      (lambda ()
-        (let ((p (open-process "status")))
-          (let loop ()
-            (let ((line (read-line p)))
-              (if (eof-object? line)
-                  #f
-                  (begin
-                    (thread-send bar line)
-                    (loop))))))))))
-
-(define (display-current-view tag)
-  (display (string-append "[" tag "]")))
-
-(define (display-previous-view tag)
-  (display (string-append "(" tag ")")))
+        (make-thread (lambda () (shell-command (string-append cmd "&")))))))
 
 (define (update-tag-status)
   (let ((tags (collect-all-tags)))
-    (if left-bar
-        (thread-send
-          left-bar
-          (with-output-to-string '()
-            (lambda ()
-              (display (string-append *current-view* " | " *prev-view*))
-              (for-each (lambda (t)
-                          (if (not (or (string=? t *current-view*)
-                                       (string=? t *prev-view*)))
-                              (display (string-append " " t))))
-                        tags)))))))
+    (if (file-exists? *tags-fifo*)
+        (with-output-to-file
+          *tags-fifo*
+          (lambda ()
+            (display (string-append (current-view) " | " *prev-view*))
+            (for-each (lambda (t)
+                        (if (not (or (string=? t (current-view))
+                                     (string=? t *prev-view*)))
+                            (display (string-append " " t))))
+                      tags)
+            (newline))))))
 
-(define (make-splitter sep)
-  (lambda (str)
-    (call-with-input-string
-      str
-      (lambda (p)
-        (read-all p (lambda (p) (read-line p sep)))))))
-
-(define parse-tags
-  (let ((split (make-splitter #\,)))
-    (lambda (str)
-      (if (string? str)
-          (split str)
-          '()))))
-
-(define (update-client-tags c)
-  (if c
-      (begin
-        (run-hook *retag-hook*)
-        (run-hook *arrange-hook* (client-display c) (client-screen c)))))
+(define (parse-tags str)
+  (if (string? str)
+      (split-string #\space str)
+      '()))
 
 (define (tag c)
   (if c
       (let ((all-tags (collect-all-tags)))
         (for-each
           (lambda (t) (tag-client c t))
-          (parse-tags (dmenu "Tag client:" (lambda () all-tags))))
-        (update-client-tags c))))
+          (parse-tags (dmenu "Tag client:" (lambda () all-tags)))))))
 
 (define (untag c)
   (if c
       (begin
         (for-each
           (lambda (t) (untag-client c t))
-          (parse-tags (dmenu "Untag client:" (lambda () (client-tags c)))))
-        (update-client-tags c))))
-
-(define (move-tag c)
-  (if c
-      (let ((all-tags (collect-all-tags))
-            (prev-tags (client-tags c)))
-        (for-each
-          (lambda (t) (tag-client c t))
-          (parse-tags (dmenu "Move client:" (lambda () all-tags))))
-        (for-each (lambda (t) (untag-client c t)) prev-tags)
-        (update-client-tags c))))
+          (parse-tags (dmenu "Untag client:" (lambda () (client-tags c))))))))
 
 (define (view-tag tag)
   (if (string? tag)
       (begin
-        (if (not (string=? *current-view* tag))
-            (set! *prev-view* *current-view*))
+        (if (not (string=? (current-view) tag))
+            (set! *prev-view* (current-view)))
         (to-run (lambda () (view-clients tag))))))
 
 (define (toggle-fullscreen)
-  (if *selected*
+  (if (current-client)
       (cond
-        ((string=? *current-view* ".")
-         (untag-client *selected* ".")
+        ((string=? (current-view) ".")
+         (untag-all-client (current-client) ".")
          (view-tag *prev-view*))
         (else
-          (mass-untag-clients ".")
-          (tag-client *selected* ".")
+          (untag-all-clients ".")
+          (tag-client (current-client) ".")
           (view-tag ".")))))
 
 (define (eval-from-string str)

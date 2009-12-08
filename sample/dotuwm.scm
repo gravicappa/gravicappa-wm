@@ -1,69 +1,85 @@
-(include "~/develop/uwm/contrib/utils.scm")
-(include "~/develop/uwm/contrib/dmenu.scm")
-(include "~/develop/uwm/contrib/dzen-bars.scm")
+(include "~/dev/uwm/sample/utils.scm")
+(include "~/dev/uwm/sample/dmenu.scm")
 
-(define *border-color* #x000000)
-(define *selected-border-color* "#8888ff")
+(define *border-colour* #x000000)
+(define *selected-border-colour* "#8888ff")
 (define *border-width* 1)
 (define *bar-height* 16)
 (define *tile-ratio* 55/100)
 
-(define *bar-font* "-*-fixed-medium-r-*-*-13-*-*-*-*-*-iso10646-1")
-(define *bar-norm-bg-color* "#333333")
-(define *bar-norm-color* "#bbbbbb")
-(define *bar-sel-bg-color* "#444444")
-(define *bar-sel-color* "white")
-
 (update-tag-status)
 
-(add-hook *retag-hook* 'update-tag-status)
+(add-hook *update-tag-hook* update-tag-status)
 
-(define (view)
-  (view-tag (dmenu "View:" (lambda () (collect-all-tags)))))
+(define-global-key "s-x s-c" exit)
+(define-global-key "s-x s-l" (lambda () (load *user-config-file*)))
+(define-global-key "s-RET" (lambda () (shell-command& "xterm")))
+(define-global-key "s-p" (lambda () (shell-command& "dmenu_run")))
+(define-global-key "s-c" (lambda () (kill-client! (current-client))))
+(define-global-key "s-h" focus-left)
+(define-global-key "s-j" focus-before)
+(define-global-key "s-k" focus-after)
+(define-global-key "s-l" focus-right)
+(define-global-key "s-a" focus-previous)
+(define-global-key "s-o" (lambda () (zoom-client (current-client))))
+(define-global-key "s-f" toggle-fullscreen)
+(define-global-key "s-m" (lambda () (tag (current-client))))
+(define-global-key "s-u" (lambda () (untag-client (current-client)
+                                                  (current-view))))
 
-(define-key *top-map* (kbd "s-x s-c") (lambda () (exit)))
-(define-key *top-map* (kbd "s-x s-l") (lambda () (load *user-config-file*)))
-(define-key *top-map* (kbd "s-RET") (lambda () (shell-command& "xterm")))
-(define-key *top-map* (kbd "s-p") dmenu-run)
-(define-key *top-map* (kbd "s-c") (lambda () (kill-client *selected*)))
-(define-key *top-map* (kbd "s-h") (lambda () (focus-client 'left)))
-(define-key *top-map* (kbd "s-j") (lambda () (focus-client 'down)))
-(define-key *top-map* (kbd "s-k") (lambda () (focus-client 'up)))
-(define-key *top-map* (kbd "s-l") (lambda () (focus-client 'right)))
-(define-key *top-map* (kbd "s-a") (lambda () (focus-previous)))
-(define-key *top-map* (kbd "s-o") (lambda () (zoom-client)))
-(define-key *top-map* (kbd "s-TAB") (lambda () (focus-in-list 'after)))
-(define-key *top-map* (kbd "s-S-TAB") (lambda () (focus-in-list 'before)))
+(define-global-key "s-t"
+  (lambda ()
+    (view-tag (dmenu "View:" (lambda () (collect-all-tags))))))
 
-(define-key *top-map* (kbd "s-f") (lambda () (toggle-fullscreen)))
-(define-key *top-map* (kbd "s-m") (lambda () (tag *selected*)))
-(define-key *top-map* (kbd "s-u") (lambda ()
-                                    (untag-client *selected* *current-view*)))
-(define-key *top-map* (kbd "s-t") (lambda () (view)))
-(define-key *top-map* (kbd "s-r") (lambda () (view-tag *prev-view*)))
+(define-global-key "s-r" (lambda () (view-tag *prev-view*)))
 
-(define-key *top-map* (kbd "s-e")
-            (lambda () (to-run (lambda ()
-                                 (eval-from-string
-                                   (dmenu "Eval:" (lambda () '())))))))
+(define-global-key "s-e"
+  (lambda ()
+    (to-run (lambda ()
+              (eval-from-string
+                (dmenu "Eval:" (lambda () '())))))))
 
-(define-key *top-map* (kbd "s-M-h")
-            (lambda () (resize-client-by *selected* 0 0 -50 0)))
-(define-key *top-map* (kbd "s-M-j")
-            (lambda () (resize-client-by *selected* 0 0 0 50)))
-(define-key *top-map* (kbd "s-M-k")
-            (lambda () (resize-client-by *selected* 0 0 0 -50)))
-(define-key *top-map* (kbd "s-M-l")
-            (lambda () (resize-client-by *selected* 0 0 50 0)))
+(define-global-key "s-M-h"
+  (lambda ()
+    (resize-client-by (current-client) 0 0 -50 0)))
 
-(define-key *top-map* (kbd "s-S-h")
-            (lambda () (resize-client-by *selected* -50 0 0 0)))
-(define-key *top-map* (kbd "s-S-j")
-            (lambda () (resize-client-by *selected* 0 50 0 0)))
-(define-key *top-map* (kbd "s-S-k")
-            (lambda () (resize-client-by *selected* 0 -50 0 0)))
-(define-key *top-map* (kbd "s-S-l")
-            (lambda () (resize-client-by *selected* 50 0 0 0)))
+(define-global-key "s-M-j"
+  (lambda ()
+    (resize-client-by (current-client) 0 0 0 50)))
 
-(restart-bars)
-(setenv "DMENU_ARGS" (string<-args (dmenu-args)))
+(define-global-key "s-M-k"
+  (lambda ()
+    (resize-client-by (current-client) 0 0 0 -50)))
+
+(define-global-key "s-M-l"
+  (lambda ()
+    (resize-client-by (current-client) 0 0 50 0)))
+
+(define-global-key "s-S-h"
+  (lambda ()
+    (resize-client-by (current-client) -50 0 0 0)))
+
+(define-global-key "s-S-j"
+  (lambda ()
+    (resize-client-by (current-client) 0 50 0 0)))
+
+(define-global-key "s-S-k"
+  (lambda ()
+    (resize-client-by (current-client) 0 -50 0 0)))
+
+(define-global-key "s-S-l"
+  (lambda ()
+    (resize-client-by (current-client) 50 0 0 0)))
+
+(define-global-key "XF86AudioRaiseVolume"
+  (lambda () (shell-command& "amixer set Master 2%+")))
+
+(define-global-key "XF86AudioLowerVolume"
+  (lambda () (shell-command& "amixer set Master 2%-")))
+
+(define-global-key "XF86Sleep"
+  (lambda ()
+    (shell-command& "sudo pm-suspend")))
+
+(define-global-key "XF86AudioMute"
+  (lambda () (shell-command& "amixer set Master toggle")))
