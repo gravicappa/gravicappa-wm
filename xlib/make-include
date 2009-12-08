@@ -2,7 +2,7 @@
 
 (define (process-toplevel form)
   (case (car form)
-    ((define %define/x-setter %define/x-const) 
+    ((define %define/x-setter %define/x-const %define/x-pstruct-getter) 
       (let ((name (if (pair? (cadr form)) (caadr form) (cadr form))))
         (if (not (char=? #\% (string-ref (symbol->string name) 0)))
             (begin

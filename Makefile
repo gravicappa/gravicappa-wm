@@ -5,7 +5,8 @@ version = HEAD
 GSC = gambit-gsc
 GSC_FLAGS = -ld-options "-lX11"
 CC = gcc
-SRC = xlib/Xlib.scm main.scm
+src = xlib/xlib.scm main.scm
+deps = ${wildcard *.scm}
 
 .PHONY: all clean clean-obj xlib
 
@@ -14,14 +15,8 @@ all: ${executable}
 clean: clean-obj
 	-rm *.c *.o ${executable}
 
-${executable}: ${SRC} ${GAMBIT_LIB} xlib/Xlib\#.scm
-	${GSC} ${GSC_FLAGS} -exe -o $@ ${SRC}
-
-xlib:
-	make -C xlib
-
-xlib/Xlib\#.scm:
-	make -C xlib Xlib\#.scm
+${executable}: ${src} ${deps}
+	${GSC} ${GSC_FLAGS} -exe -o $@ ${src}
 
 clean-obj:
 	-rm *.o* 2> /dev/null

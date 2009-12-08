@@ -1,5 +1,3 @@
-(include "xlib/Xlib#.scm")
-
 (define *ignored-modifiers* (list +lock-mask+
                                   +mod2-mask+
                                   (bitwise-ior +lock-mask+ +mod2-mask+)))
@@ -66,12 +64,20 @@
   (let ((key-name (assoc key *key-names*)))
     (x-string-to-keysym (or (and (pair? key-name) (cdr key-name)) key))))
 
-(define (split-string sep)
-  (lambda (str)
-    (call-with-input-string
-      str
-      (lambda (p)
-        (read-all p (lambda (p) (read-line p sep)))))))
+(define (split-string sep s)
+  (let ((len (string-length s)))
+    (let loop ((start 0)
+               (i 0)
+               (acc '()))
+      (if (< i len)
+          (if (char=? (string-ref s i) sep)
+              (loop (+ i 1) (+ i 1) (if (< start i)
+                                        (cons (substring s start i) acc)
+                                        acc))
+              (loop start (+ i 1) acc))
+          (if (< start i)
+              (reverse (cons (substring s start len) acc))
+              (reverse acc))))))
 
 (define (last <list>)
   (if (pair? <list>)
@@ -93,37 +99,37 @@
   (list->string (remove #\space (string->list str))))
 
 (define (parse-keychord chord)
-  (let ((spec ((split-string #\-) chord)))
+  (let ((spec (split-string #\- chord)))
     (if (cdr spec)
         (cons (parse-key (last spec)) (parse-modifiers (butlast spec)))
         (cons (parse-key (car spec)) 0))))
 
 (define (parse-keymap str)
-  (let ((chords ((split-string #\space) str)))
+  (let ((chords (split-string #\space str)))
     (map parse-keychord chords)))
-
-(define kbd parse-keymap)
 
 (define (clean-mod mod)
   (bitwise-and mod (bitwise-not (make-modifier *ignored-modifiers*))))
 
-(define (gc-bindings binds #!optional acc)
-  (let ((bind (car binds)))
-    (cond
-      ((null? binds) acc)
-      ((null? (cdr bind)) (gc-bindings (cdr binds) acc))
-      ((not (pair? (cdr bind))) (gc-bindings (cdr binds) (cons bind acc)))
-      (else (let ((b (gc-bindings (cdr bind))))
-              (gc-bindings (cdr binds) (if b
-                                           (cons (cons (car bind) b) acc)
-                                           acc)))))))
+(define (gc-bindings binds acc)
+  (if (pair? binds)
+      (let ((bind (car binds)))
+        (cond
+          ((null? (cdr bind)) (gc-bindings (cdr binds) acc))
+          ((not (pair? (cdr bind))) (gc-bindings (cdr binds) (cons bind acc)))
+          (else (let ((b (gc-bindings (cdr bind) '())))
+                  (gc-bindings (cdr binds)
+                               (if b
+                                   (cons (cons (car bind) b) acc)
+                                   acc))))))
+      acc))
 
 (define (tree-from-list lst value)
   (cond ((null? lst) '())
         ((null? (cdr lst)) (cons (car lst) value))
         (else (cons (car lst) (list (tree-from-list (cdr lst) value))))))
 
-(define (add-to-tree item value binds #!optional (acc '()))
+(define (add-to-tree item value binds acc)
   (let ((b (if (pair? binds) (car binds) '())))
     (cond
       ((and (null? item) (not (pair? binds)) (null? acc)) value)
@@ -136,17 +142,19 @@
          acc))
       (else (add-to-tree item value (cdr binds) (cons b acc))))))
 
-(define (bind-key map keys fn)
-  (if fn
-      (add-to-tree keys fn map)
-      (gc-bindings (add-to-tree keys fn map))))
+(define (bind-key map keys thunk)
+  (if (procedure? thunk)
+      (add-to-tree keys thunk map '())
+      (gc-bindings (add-to-tree keys #f map '()) '())))
 
-(define (define-key map keys fn)
-  (set-cdr! map (bind-key (cdr map) keys fn)))
+(define (define-key map keys thunk)
+  (set-cdr! map (bind-key (cdr map) (parse-keymap keys) thunk)))
+
+(define (define-global-key keys thunk)
+  (define-key *top-map* keys thunk))
 
 (define (find-bindings key mod map)
   (find-if (lambda (b)
              (let ((b (car b)))
                (and (eq? key (car b)) (eq? mod (cdr b)))))
            map))
-

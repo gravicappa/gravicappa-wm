@@ -1,2 +1,2 @@
-(include "gravicappa-wm.scm")
-(main)
+(include "wm.scm")
+(apply main (cdr (command-line)))

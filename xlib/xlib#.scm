@@ -1,10 +1,9 @@
 (##namespace
   ("x#"
     x-client-message-event-data-l
-    x-client-message-event-data-l-set!
+    set-x-client-message-event-data-l!
     x-default-error-handler
     x-error-handler
-    x-set-error-handler!
     set-x-error-handler!
     x-size-hints-min-aspect-x
     x-size-hints-min-aspect-y
@@ -80,8 +79,10 @@
     make-x-event-box
     x-send-event
     x-lookup-string
+    x-get-window-attributes
+    x-get-wm-normal-hints
     x-change-property-atoms
-    x-window-state-set!
+    set-x-window-state!
     x-set-window-border-width
     x-set-window-border
     x-reparent-window

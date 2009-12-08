@@ -12,16 +12,6 @@
   (eval expr)
   expr)
 
-(define-macro (when expr . body)
-  `(if ,expr
-       (begin ,@body)
-       #f))
-
-(define-macro (unless expr . body)
-  `(if ,expr
-       #f
-       (begin ,@body)))
-
 (eval-at-macroexpand
   (define (find item <list>)
     (let ((found (member item <list>)))
@@ -29,22 +19,13 @@
           (car found)
           #f))))
 
-(define (add-to-list <list> item)
-  (if (not (find item <list>))
-      (set-cdr! <list> (append <list> (list item)))))
-
-(define-macro (define-hook name)
-  `(define ,name (list (lambda args #f))))
+(define (make-hook . initial) 
+  (cons (lambda args #f) initial))
 
 (define (run-single-hook fn args)
   (apply (cond ((procedure? fn) fn)
                ((or (symbol? fn) (pair? fn)) (eval fn)))
          args))
-
-(define (chain hook . args)
-  (let loop ((hook hook))
-    (if (and (pair? hook) (not (run-single-hook (car hook))))
-        (loop (cdr hook)))))
 
 (define (run-hook hook . args)
   (for-each (lambda (h) (run-single-hook h args))
@@ -126,29 +107,12 @@
              ,@(if (find 'ev args)
                    `((ev ,ev))
                    '()))
-         (when (+debug-events+)
-           (log-x-event ',event ,ev))
+         (if (+debug-events+)
+             (log-x-event ',event ,ev))
          ,@body))))
 
 (define-macro (define-x-event-handler args . body)
-  `(table-set! *x11-event-dispatcher*
-               ,(string->symbol
-                  (string-append "+" (symbol->string (car args)) "+"))
-               (lambda/x-event ,(car args) ,(cdr args) ,@body)))
-
-(define (get-colour display screen color)
-  (let* ((cmap (x-default-colormap-of-screen
-                 (x-screen-of-display display (screen-id screen))))
-         (c (make-x-color-box))
-         (component (lambda (mask shift)
-                      (arithmetic-shift (bitwise-and color mask) shift)))
-         (ret (cond
-                ((string? color)
-                 (= (x-parse-color display cmap color c) 1))
-                ((number? color)
-                 (x-color-red-set! c (component #xff0000 -8))
-                 (x-color-green-set! c (component #x00ff00 0))
-                 (x-color-blue-set! c (component #x0000ff 8))
-                 #t))))
-    (when (and ret (= (x-alloc-color display cmap c) 1))
-      (x-color-pixel c))))
+  `(table-set!
+    *x11-event-dispatcher*
+    ,(string->symbol (string-append "+" (symbol->string (car args)) "+"))
+    (lambda/x-event ,(car args) ,(cdr args) ,@body)))

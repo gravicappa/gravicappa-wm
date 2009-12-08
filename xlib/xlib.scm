@@ -198,7 +198,7 @@ end-of-c-declare
             long
             "___result = ___arg1->xclient.data.l[___arg2];"))
 
-(define x-client-message-event-data-l-set!
+(define set-x-client-message-event-data-l!
   (c-lambda (XEvent* int long)
             void
             "___arg1->xclient.data.l[___arg2] = ___arg3;"))
@@ -221,14 +221,14 @@ end-of-c-declare
           (error-handler display ev)
           0)
 
-(define x-set-error-handler!
+(define %set-error-handler!
   (c-lambda ((function (Display* XEvent*) int))
             (pointer "void")
             "XSetErrorHandler"))
 
 (define (set-x-error-handler! fn)
   (set! error-handler fn)
-  (x-set-error-handler! x-scheme-error-handler)
+  (%set-error-handler! x-scheme-error-handler)
   (void))
 
 (define x-size-hints-min-aspect-x
@@ -760,7 +760,7 @@ end-of-c-lambda
 end-of-lambda
 ))
 
-(define x-window-state-set!
+(define set-x-window-state!
   (c-lambda (Display* Window Atom long)
             int
             "long data[] = {___arg4, None};

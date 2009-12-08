@@ -1,113 +1,109 @@
-(include "sort.scm")
-
-(define (client-edge c dir)
-  (let ((x1 (client-x c))
-        (y1 (client-y c))
-        (x2 (+ (client-x c) (client-w c)))
-        (y2 (+ (client-y c) (client-h c))))
-    (case dir
-      ((up) (values x1 x2 y1))
-      ((down) (values x1 x2 y2))
-      ((left) (values y1 y2 x1))
-      ((right) (values y1 y2 x2)))))
-
-(define (opposite dir)
-  (case dir
-    ((up) 'down) ((down) 'up) ((left) 'right) ((right) 'left)))
-
-(define (find-client* start end dist clients dir weight ret)
-  (if (pair? clients)
-      (call-with-values
-        (lambda () (client-edge (car clients) dir))
-        (lambda (start1 end1 dist1)
-          (let ((w (abs (- dist dist1))))
-            (if (and (< (abs (- dist dist1)) 100) (> w weight))
-                (find-client*
-                  start end dist (cdr clients) dir w (car clients))
-                (find-client* start end dist (cdr clients) dir weight ret)))))
-      ret))
-
-(define (find-client direction client in)
-  (if (and client in)
-      (call-with-values
-        (lambda () (client-edge client direction))
-        (lambda (start end dist)
-          (find-client* start end dist in (opposite direction) 0 #f)))
-      #f))
-
-(define (focus-client direction #!optional (client *selected*))
-  (if client
-      (let* ((visible (filter client-visible?
-                              (screen-focus-stack (client-screen client))))
-             (next (find-client direction client visible)))
-        (if next
-            (run-hook *focus-hook* (client-display next) next)))))
-
 (define (focus-previous)
-  (if *selected*
-      (let ((v (filter client-visible?
-                       (screen-focus-stack (client-screen *selected*)))))
-        (if (and (pair? (cdr v)) (cadr v))
-            (run-hook *focus-hook* (client-display (cadr v)) (cadr v))))))
+  (if (current-client)
+      (let ((c (filter client-visible?
+                       (screen-focus-stack
+                         (client-screen (current-client))))))
+        (if (and (pair? (cdr c)) (client? (cadr c)))
+            (focus-client (client-display (cadr c)) (cadr c))))))
 
-(define (find-client-after c clients)
+(define (focus-left)
+  (if (current-client)
+      (let* ((s (client-screen (current-client)))
+             (c (filter client-visible? (cdr (screen-clients s)))))
+        (if (and (positive? (length c)) (client? (car c)))
+            (focus-client (client-display (car c)) (car c))))))
+
+(define (focus-right)
+  (if (current-client)
+      (let* ((s (client-screen (current-client)))
+             (c (filter client-visible? (cdr (screen-clients s))))
+             (f (filter client-visible? (cdr (screen-focus-stack s)))))
+        (if (and (pair? c) (pair? (cdr c)) (pair? f) (pair? (cdr f))
+                 (eq? (current-client) (car c)) (client? (cadr f)))
+            (focus-client (client-display (cadr f)) (cadr f))))))
+
+(define (find-client-rel test init clients)
   (let loop ((clients clients)
-             (old (last clients)))
+             (prev init))
     (if (pair? clients)
-        (if (eq? c old)
-            (car clients)
-            (loop (cdr clients) (car clients))))))
+        (let ((found (test prev (car clients))))
+          (if found
+              found
+              (loop (cdr clients) (car clients))))
+        #f)))
 
 (define (find-client-before c clients)
-  (let loop ((clients clients)
-             (old (last clients)))
-    (if (pair? clients)
-        (if (eq? c (car clients))
-            old
-            (loop (cdr clients) (car clients))))))
+  (find-client-rel (lambda (cur prev) (if (eq? cur c) prev #f)) 
+                   (last clients)
+                   clients))
 
-(define (focus-in-list dir #!optional (c *selected*))
+(define (find-client-after c clients)
+  (find-client-rel (lambda (cur prev) (if (eq? prev c) cur #f))
+                   (last clients)
+                   clients))
+
+(define (focus-rel select c)
   (if c
       (let* ((clients (screen-clients (client-screen c)))
-             (next ((case dir
-                      ((after) find-client-after)
-                      ((before) find-client-before))
-                    c
-                    (filter client-visible? clients))))
-        (if next
-            (run-hook *focus-hook* (client-display next) next)))))
+             (next (select
+                     c
+                     (filter client-visible? clients))))
+        (if (client? next)
+            (focus-client (client-display next) next)))))
 
-(define (zoom-client #!optional (client *selected*))
-  (when client
-    (let ((clients (filter client-tiled?
-                           (screen-clients (client-screen client)))))
-      (if (and (eq? client (car clients))
-               (pair? (cdr clients))
-               (cadr clients))
-          (to-stack-top (cadr clients))
-          (to-stack-top client))
-      (run-hook *arrange-hook*
-                (client-display client)
-                (client-screen client)))))
+(define (focus-after)
+  (focus-rel find-client-after (current-client)))
 
-(define (collect-tags clients tags)
-  (if (pair? clients)
-      (collect-tags (cdr clients) (append (client-tags (car clients)) tags))
-      tags))
+(define (focus-before)
+  (focus-rel find-client-before (current-client)))
+
+(define (zoom-client client)
+  (if client
+      (let* ((s (client-screen client))
+             (clients (filter client-tiled? (screen-clients s))))
+        (if (and (eq? client (car clients))
+                 (pair? (cdr clients))
+                 (cadr clients))
+            (move-client-to-top! (cadr clients) (screen-clients s))
+            (move-client-to-top! client (screen-clients s)))
+        (arrange-screen (client-display client) s))))
 
 (define (collect-all-tags)
-  (let loop ((screens *screens*)
-             (tags '()))
-    (if (pair? screens)
-        (loop (cdr screens)
-              (collect-tags (screen-clients (car screens)) tags))
-        (remove-duplicates tags string=?-hash eq?))))
+  (let ((tags-table (make-table)))
+    (for-each
+      (lambda (s)
+        (for-each
+          (lambda (c)
+            (for-each
+              (lambda (t) (table-set! tags-table t #t))
+              (client-tags c)))
+          (cdr (screen-clients s))))
+      *screens*)
+    (map car (table->list tags-table))))
 
 (define (view-clients tag)
-  (set! *current-view* tag)
-  (run-hook *retag-hook*)
+  (current-view tag)
+  (run-hook *update-tag-hook*)
   (let ((s (current-screen)))
-    (run-hook *arrange-hook* (screen-display s) s)))
+    (arrange-screen (screen-display s) s)))
+
+(define (tag-client c tag)
+  (if (and c (string? tag))
+      (let ((tags (client-tags c)))
+        (if (not (member tag tags))
+            (begin
+              (set-client-tags! c (cons tag tags))
+              (run-hook *update-tag-hook*)
+              (arrange-screen (client-display c) (client-screen c)))))))
+
+(define (untag-client c tag)
+  (if (and c (string? tag))
+      (let ((new (remove-if (lambda (t) (string=? t tag)) (client-tags c))))
+        (if (pair? new)
+            (begin
+              (set-client-tags! c new)
+              (run-hook *update-tag-hook*)
+              (arrange-screen (client-display c) (client-screen c)))))))
 
 (define (collect-tagged-clients tag)
   (let loop ((screens *screens*)
@@ -119,38 +115,17 @@
                       clients))
         clients)))
 
-(define (tag-client c tag)
-  (if (and c (string? tag))
-      (let ((tags (client-tags c)))
-        (if (not (member tag tags))
-            (begin
-              (client-tags-set! c (cons tag tags))
-              (run-hook *retag-hook*)
-              (run-hook *arrange-hook*
-                        (client-display c)
-                        (client-screen c)))))))
-
-(define (untag-client c tag)
-  (let ((new-tags (remove-if (lambda (t) (string=? t tag)) (client-tags c))))
-    (if (pair? new-tags)
-        (begin
-          (client-tags-set! c new-tags)
-          (run-hook *retag-hook*)
-          (run-hook *arrange-hook* (client-display c) (client-screen c))))))
-
-(define (mass-untag-clients tag)
+(define (untag-all-clients tag)
   (let ((clients (collect-tagged-clients tag)))
-    (for-each (lambda (c) (untag-client c tag)) clients)
-    (let ((s (current-screen)))
-      (run-hook *retag-hook*)
-      (run-hook *arrange-hook* (screen-display s) s))))
+    (for-each (lambda (c) (untag-client c tag)) clients)))
 
-(define (resize-client-by c dx dy dw dh)
-  (when (and c (client-floating? c))
-    (client-x-set! c (+ (client-x c) dx))
-    (client-y-set! c (+ (client-y c) dy))
-    (client-w-set! c (+ (client-w c) dw))
-    (client-h-set! c (+ (client-h c) dh))
-    (hold-client-on-screen c)
-    (resize-client c (client-x c) (client-y c) (client-w c) (client-h c))))
-
+(define (resize-client-rel! c dx dy dw dh)
+  (if (and c (client-floating? c))
+      (begin
+        (set-client-x! c (+ (client-x c) dx))
+        (set-client-y! c (+ (client-y c) dy))
+        (set-client-w! c (+ (client-w c) dw))
+        (set-client-h! c (+ (client-h c) dh))
+        (hold-client-on-screen! c)
+        (resize-client! 
+          c (client-x c) (client-y c) (client-w c) (client-h c)))))
