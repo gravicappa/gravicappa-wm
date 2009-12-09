@@ -111,7 +111,7 @@
     (if (pair? screens)
         (loop (cdr screens)
               (append (filter (lambda (c) (client-tagged? c tag))
-                              (screen-clients (car screens)))
+                              (cdr (screen-clients (car screens))))
                       clients))
         clients)))
 
