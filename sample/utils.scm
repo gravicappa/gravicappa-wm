@@ -1,28 +1,40 @@
 (define *prev-view* "")
 (define *tags-fifo* (string-append "~/tmp/tags" (getenv "DISPLAY")))
 
-(define (to-run fn)
-  (if fn
-      (thread-send (current-thread) fn)))
+(define (to-run thunk)
+  (if (procedure? thunk)
+      (thread-send (current-thread) thunk)))
 
 (define (shell-command& cmd)
   (if (string? cmd)
       (thread-start!
         (make-thread (lambda () (shell-command (string-append cmd "&")))))))
 
+(define (write-to-file-or-fail string filename)
+  (with-exception-catcher
+    (lambda (e) #f)
+    (lambda ()
+      (if (file-exists? filename)
+          (with-output-to-file
+            filename
+            (lambda ()
+              (display string)
+              (newline))))
+      #t)))
+
 (define (update-tag-status)
-  (let ((tags (collect-all-tags)))
-    (if (file-exists? *tags-fifo*)
-        (with-output-to-file
-          *tags-fifo*
-          (lambda ()
-            (display (string-append (current-view) " | " *prev-view*))
-            (for-each (lambda (t)
-                        (if (not (or (string=? t (current-view))
-                                     (string=? t *prev-view*)))
-                            (display (string-append " " t))))
-                      tags)
-            (newline))))))
+  (let loop ((tags (collect-all-tags))
+             (str (string-append (current-view) " | " *prev-view*)))
+    (if (pair? tags)
+        (loop (cdr tags)
+              (if (or (string=? (car tags) (current-view))
+                      (string=? (car tags) *prev-view*))
+                  str
+                  (string-append str " " (car tags))))
+        (if (not (write-to-file-or-fail str *tags-fifo*))
+            (begin
+              (thread-sleep! 1/100)
+              (write-to-file-or-fail str *tags-fifo*))))))
 
 (define (parse-tags str)
   (if (string? str)
@@ -54,7 +66,7 @@
   (if (current-client)
       (cond
         ((string=? (current-view) ".")
-         (untag-all-client (current-client) ".")
+         (untag-client (current-client) ".")
          (view-tag *prev-view*))
         (else
           (untag-all-clients ".")
@@ -63,7 +75,6 @@
 
 (define (eval-from-string str)
   (if (string? str)
-      (with-exception-catcher
+      (with-exception-handler
         (lambda (e) #f)
-        (lambda ()
-          (eval (with-input-from-string str (lambda () (read))))))))
+        (lambda () (eval (with-input-from-string str read))))))
