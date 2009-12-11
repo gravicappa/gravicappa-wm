@@ -4,7 +4,8 @@
   (with-exception-handler
     (lambda (e) #f)
     (lambda ()
-      (let ((p (open-process `(path: "dmenu" arguments: ("-p" ,title)))))
+      (let ((p (open-process `(path: ,(path-expand *dmenu*)
+                               arguments: ("-p" ,title)))))
         (dynamic-wind
           (lambda () #f)
           (lambda ()
