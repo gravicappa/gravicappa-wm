@@ -120,7 +120,7 @@
     (for-each (lambda (c) (untag-client c tag)) clients)))
 
 (define (resize-client-rel! c dx dy dw dh)
-  (if (and c (client-floating? c))
+  (if (and (client? c) (client-floating? c))
       (begin
         (set-client-x! c (+ (client-x c) dx))
         (set-client-y! c (+ (client-y c) dy))
