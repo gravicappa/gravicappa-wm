@@ -1,3 +1,5 @@
+(define *dmenu* "dmenu")
+
 (define (dmenu title thunk)
   (with-exception-handler
     (lambda (e) #f)
