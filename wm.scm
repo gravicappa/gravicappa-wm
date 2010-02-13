@@ -88,6 +88,7 @@
               (begin
                 (thunk)
                 (loop)))))
+      (##gc)
       #t)))
 
 (define (main-loop disp)
@@ -124,7 +125,9 @@
       (lambda ()
         (if disp
             (begin
-              (run-hook *shutdown-hook* disp)))))))
+              (run-hook *shutdown-hook* disp)))
+        (set! *screens* '())
+        (##gc)))))
 
 (define (get-option option args)
   (if (pair? args)
