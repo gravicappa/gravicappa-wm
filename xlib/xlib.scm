@@ -14,7 +14,7 @@
   (not safe))
 
 (namespace ("x#"))
-(##include "~~/lib/gambit#.scm")
+(##include "~~lib/gambit#.scm")
 
 (define-macro (%eval-at-macroexpand expr)
   (eval expr)
@@ -175,6 +175,7 @@ XFree_GC(void *ptr)
 end-of-c-declare
 )
 
+(c-define-type Display* (pointer "Display"))
 (c-define-type GC (pointer (struct "_XGC") (GC)))
 (c-define-type GC/XFree (pointer (struct "_XGC") (GC) "XFree_GC"))
 
@@ -185,7 +186,6 @@ end-of-c-declare
 (%define/x-object "Visual" "XFree")
 (%define/x-object "Screen" "XFree")
 (%define/x-object "XFontStruct" "XFree")
-(%define/x-object "Display" "XFree")
 (%define/x-object "XWindowAttributes" "release-rc")
 (%define/x-object "XSizeHints" "release-rc")
 
@@ -243,8 +243,10 @@ end-of-c-declare
 (define x-size-hints-max-aspect-y
   (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.y;"))
 
-(define x-open-display 
-  (c-lambda (char*) Display*/XFree "XOpenDisplay"))
+(define (x-open-display name)
+  (let ((d ((c-lambda (char*) Display* "XOpenDisplay") name)))
+    (make-will d x-close-display)
+    d))
 
 (define x-close-display
   (c-lambda (Display*) int "XCloseDisplay"))
@@ -298,7 +300,20 @@ end-of-c-declare
   (c-lambda (Display* char-string Bool) Atom "XInternAtom"))
 
 (define x-get-atom-name
-  (c-lambda (Display* Atom) char-string "XGetAtomName"))
+  (c-lambda (Display* Atom) scheme-object
+  "
+   char *s;
+   ___SCMOBJ ret;
+
+   s = XGetAtomName(___arg1, ___arg2);
+   ___result = ___NUL;
+   if (s) {
+     ___CHARSTRING_to_SCMOBJ(s, &ret, 0);
+     XFree(s);
+     ___release_scmobj(ret);
+     ___result = ret;
+   }
+  "))
 
 (define x-default-gc
   (c-lambda (Display* int) GC/XFree "XDefaultGC"))
@@ -338,9 +353,7 @@ end-of-c-declare
   (c-lambda (Display* bool) int "XSync"))
 
 (define x-grab-key
-  (c-lambda (Display* int unsigned-int Window bool int int)
-            int
-            "XGrabKey"))
+  (c-lambda (Display* int unsigned-int Window bool int int) int "XGrabKey"))
 
 (define x-ungrab-key
   (c-lambda (Display* int unsigned-int Window) int "XUngrabKey"))
@@ -349,9 +362,7 @@ end-of-c-declare
   (c-lambda (Display* Window bool int int Time) int "XGrabKeyboard"))
 
 (define x-ungrab-keyboard
-  (c-lambda (Display* Time)
-            int
-            "XUngrabKeyboard"))
+  (c-lambda (Display* Time) int "XUngrabKeyboard"))
 
 (define x-keysym-to-keycode
   (c-lambda (Display* KeySym) KeyCode "XKeysymToKeycode"))
@@ -412,37 +423,16 @@ end-of-c-declare
             "XFillArc"))
 
 (define x-draw-string
-  (c-lambda (Display*      ;; display
-             Drawable      ;; d
-             GC            ;; gc
-             int           ;; x
-             int           ;; y
-             char*         ;; string
-             int)          ;; length
-            int
-            "XDrawString"))
+  (c-lambda (Display* Drawable GC int int char* int) int "XDrawString"))
 
 (define x-text-width
-  (c-lambda (XFontStruct*  ;; font_struct
-             char*         ;; string
-             int)          ;; count
-            int
-            "XTextWidth"))
+  (c-lambda (XFontStruct* char* int) int "XTextWidth"))
 
 (define x-parse-color
-  (c-lambda (Display*      ;; display
-             Colormap      ;; colormap
-             char*         ;; spec
-             XColor*)      ;; exact_def_return
-            Status
-            "XParseColor"))
+  (c-lambda (Display* Colormap char* XColor*) Status "XParseColor"))
 
 (define x-alloc-color
-  (c-lambda (Display*      ;; display
-             Colormap      ;; colormap
-             XColor*)      ;; screen_in_out
-            Status
-            "XAllocColor"))
+  (c-lambda (Display* Colormap XColor*) Status "XAllocColor"))
 
 (define (make-x-color-box)
   ((c-lambda ()
@@ -456,58 +446,31 @@ end-of-c-declare
      "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XGCValues));")))
 
 (define x-set-input-focus
-  (c-lambda (Display* Window int Time)
-            int
-            "XSetInputFocus"))
+  (c-lambda (Display* Window int Time) int "XSetInputFocus"))
 
 (define x-change-gc
-  (c-lambda (Display*       ;; display
-             GC             ;; gc
-             unsigned-long  ;; valuemask
-             XGCValues*)    ;; values
-            int
-            "XChangeGC"))
+  (c-lambda (Display* GC unsigned-long XGCValues*) int "XChangeGC"))
 
 (define x-get-gc-values
-  (c-lambda (Display*       ;; display
-             GC             ;; gc
-             unsigned-long  ;; valuemask
-             XGCValues*)    ;; values_return
-            int
-            "XGetGCValues"))
+  (c-lambda (Display* GC unsigned-long XGCValues*) int "XGetGCValues"))
 
 (define x-query-font
-  (c-lambda (Display*       ;; display
-             Font)          ;; font_ID
-            XFontStruct*/XFree
-            "XQueryFont"))
+  (c-lambda (Display* Font) XFontStruct*/XFree "XQueryFont"))
 
 (define x-load-font
-  (c-lambda (Display*       ;; display
-             char*)         ;; name
-            Font
-            "XLoadFont"))
+  (c-lambda (Display* char*) Font "XLoadFont"))
 
 (define x-load-query-font
-  (c-lambda (Display*       ;; display
-             char*)         ;; name
-            XFontStruct*/XFree
-            "XLoadQueryFont"))
+  (c-lambda (Display* char*) XFontStruct*/XFree "XLoadQueryFont"))
 
 (define x-font-struct-fid
-  (c-lambda (XFontStruct*)  ;; font_struct
-            Font
-            "___result = ___arg1->fid;"))
+  (c-lambda (XFontStruct*) Font "___result = ___arg1->fid;"))
 
 (define x-font-struct-ascent
-  (c-lambda (XFontStruct*)  ;; font_struct
-            int
-            "___result = ___arg1->ascent;"))
+  (c-lambda (XFontStruct*) int "___result = ___arg1->ascent;"))
 
 (define x-font-struct-descent
-  (c-lambda (XFontStruct*)  ;; font_struct
-            int
-            "___result = ___arg1->descent;"))
+  (c-lambda (XFontStruct*) int "___result = ___arg1->descent;"))
 
 (define x-refresh-keyboard-mapping
   (c-lambda (XEvent*) int "XRefreshKeyboardMapping"))
@@ -516,32 +479,29 @@ end-of-c-declare
   (c-lambda (Display*) int "XPending"))
 
 (define x-check-mask-event
-  (c-lambda (Display*       ;; display
-            long)          ;; event_mask
+  (c-lambda (Display* long)
             XEvent*/release-rc
             "
             XEvent ev;
-            XEvent* pev;
+            XEvent *pev = 0;
             if (XCheckMaskEvent (___arg1, ___arg2, &ev)) {
-              pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof (ev)));
+              pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof(ev)));
               *pev = ev;
-            } else
-              pev = 0;
+            }
             ___result_voidstar = pev;
             "))
 
 (define x-next-event
-  (c-lambda (Display*)       ;; display
+  (c-lambda (Display*)
             XEvent*/release-rc
             "
             XEvent ev;
-            XEvent* pev;
+            XEvent *pev;
             XNextEvent(___arg1, &ev);
             pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof(ev)));
             *pev = ev;
             ___result_voidstar = pev;
-            "
-            ))
+            "))
 
 (c-define (query-tree-callback fn arg)
           (scheme-object Window)
@@ -569,74 +529,52 @@ end-of-c-declare
             "))
 
 (define (x-query-tree display window)
-  (reverse
+  (u32vector->list
     ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Window root, parent, *wins = 0;
   unsigned int num;
   ___SCMOBJ ret;
 
-  ___result = ___NUL;
-  ret = ___NUL;
+  ___result = ___FIX(___UNKNOWN_ERR);
   if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
     unsigned int i;
 
-    for (i = 0; i < num; ++i) {
-      ___SCMOBJ item, tmp;
-      ___err = ___EXT(___U32_to_SCMOBJ)(wins[i], &item, ___STILL);
-      if (___err != ___FIX(___NO_ERR)) {
-        ___EXT(___release_scmobj)(ret);
-        if (wins)
-          XFree(wins);
-        return ___err;
-      }
-      tmp = ___EXT(___make_pair)(item, ret, ___STILL);
+    ret = ___alloc_scmobj(___sU32VECTOR, num << 4, 0);
+    if (!___FIXNUMP(ret)) {
+      for (i = 0; i < num; ++i)
+        ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, wins[i]))));
       ___EXT(___release_scmobj)(ret);
-      ___EXT(___release_scmobj)(item);
-      ret = tmp;
+      ___result = ret;
     }
   }
   if (wins)
     XFree(wins);
-  ___EXT(___release_scmobj)(ret);
-  ___result = ret;
 end-of-lambda
     )
     display
     window)))
 
 (define (x-get-wm-protocols display window)
-  (reverse
+  (u32vector->list
     ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Atom *atoms = 0;
-  int num;
+  int num, i;
   ___SCMOBJ ret;
 
-  ___result = ___NUL;
-  ret = ___NUL;
+  ___result = ___FIX(___UNKNOWN_ERR);
   if (XGetWMProtocols(___arg1, ___arg2, &atoms, &num)) {
-    int i;
-
-    for (i = 0; i < num; ++i) {
-      ___SCMOBJ item, tmp;
-      ___err = ___EXT(___U32_to_SCMOBJ)(atoms[i], &item, ___STILL);
-      if (___err != ___FIX(___NO_ERR)) {
-        ___EXT(___release_scmobj)(ret);
-        if (atoms)
-          XFree(atoms);
-        return ___err;
-      }
-      tmp = ___EXT(___make_pair)(item, ret, ___STILL);
+    ret = ___alloc_scmobj(___sU32VECTOR, num << 2, 0);
+    if (!___FIXNUMP(ret)) {
+      for (i = 0; i < num; ++i)
+        ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, atoms[i]))));
       ___EXT(___release_scmobj)(ret);
-      ___EXT(___release_scmobj)(item);
-      ret = tmp;
+      ___result = ret;
     }
   }
   if (atoms)
     XFree(atoms);
-  ___EXT(___release_scmobj)(ret);
-  ___result = ret;
 end-of-lambda
     )
     display
@@ -651,6 +589,8 @@ end-of-lambda
 
             ___result = None;
             if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+              if (wins)
+                XFree(wins);
               ___result = parent;
             }
             "))
@@ -664,6 +604,8 @@ end-of-lambda
 
             ___result = None;
             if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
+              if (wins)
+                XFree(wins);
               ___result = root;
             }
             "))
@@ -677,15 +619,13 @@ end-of-lambda
 (define (make-x-event-box)
   ((c-lambda ()
              XEvent*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc)(sizeof (XEvent));")))
+             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XEvent));")))
 
 (define x-send-event
-  (c-lambda (Display* Window bool long XEvent*)
-            Status
-            "XSendEvent"))
+  (c-lambda (Display* Window bool long XEvent*) Status "XSendEvent"))
 
 (define x-lookup-string
-  (c-lambda (XEvent*)      ;; event_struct (XKeyEvent)
+  (c-lambda (XEvent*)
             KeySym
 #<<end-of-c-lambda
 char buf[10];
@@ -693,7 +633,7 @@ KeySym ks;
 XComposeStatus cs;
 int n = XLookupString (___CAST(XKeyEvent*,___arg1),
                        buf,
-                       sizeof (buf),
+                       sizeof(buf),
                        &ks,
                        &cs);
 ___result = ks;
@@ -711,41 +651,30 @@ end-of-c-lambda
   (Display* Window)
   "XSizeHints"
   "long msize;
-   if(!XGetWMNormalHints(___arg1,
-                         ___arg2,
-                         &data,
-                         &msize))
+   if(!XGetWMNormalHints(___arg1, ___arg2, &data, &msize))
       data.flags = PSize;")
 
-(define x-change-property-atoms
-  (c-lambda (Display* Window Atom scheme-object)
-            int
+(define (x-change-property-atoms dpy win atom lst)
+  ((c-lambda (Display* Window Atom scheme-object) int
 #<<end-of-lambda
-  Atom *data = 0, *ptr;
-  long length = 0;
-  ___SCMOBJ lst;
+  Atom *data = 0;
+  long n, i;
+  ___U32 *v;
 
-  lst = ___arg4;
-  for (length = 0; ___PAIRP(lst); lst = ___CDR(lst), ++length);
+  n = ___CAST(long, ___INT(___U32VECTORLENGTH(___arg4)));
 
-#if 0
-  fprintf(stderr, "(XChangeProperty) %d items\n", length);
+#if 1
+  fprintf(stderr, "(XChangeProperty) %d items\n", n);
 #endif
-  data = (Atom *)malloc(length * sizeof(Atom));
+  data = (Atom *)malloc(n * sizeof(Atom));
   if (data == 0)
     return ___FIX(___HEAP_OVERFLOW_ERR);
 
-  for (lst = ___arg4, ptr = data;
-       ___PAIRP(lst);
-       lst = ___CDR(lst), ++ptr) {
-    ___SCMOBJ item = ___CAR(lst);
-    ___err = ___EXT(___SCMOBJ_to_U32)(item, (___U32 *)ptr, ___STILL);
-    if (___err != ___FIX(___NO_ERR)) {
-      free(data);
-      return ___err;
-    }
-#if 0
-  fprintf(stderr, "(XChangeProperty) item = %ld\n", *ptr);
+  v = ___CAST(___U32*, ___BODY_AS(___arg4, ___tSUBTYPED));
+  for (i = 0; i < n; ++i) {
+    data[i] = v[i];
+#if 1
+    fprintf(stderr, "(XChangeProperty) item[%d] = %ld\n", i, data[i]);
 #endif
   }
   ___result = XChangeProperty(___arg1,
@@ -755,10 +684,14 @@ end-of-c-lambda
                               32,
                               PropModeReplace,
                               (unsigned char *)data,
-                              length);
+                              n);
   free(data);
+#if 1
+  fprintf(stderr, "(XChangeProperty) ret = %d\n", ___result);
+#endif
 end-of-lambda
-))
+    )
+    dpy win atom (list->u32vector lst)))
 
 (define set-x-window-state!
   (c-lambda (Display* Window Atom long)
@@ -774,19 +707,13 @@ end-of-lambda
                                          2);"))
 
 (define x-set-window-border-width
-  (c-lambda (Display* Window unsigned-int)
-            int
-            "XSetWindowBorderWidth"))
+  (c-lambda (Display* Window unsigned-int) int "XSetWindowBorderWidth"))
 
 (define x-set-window-border
-  (c-lambda (Display* Window unsigned-long)
-            int
-            "XSetWindowBorder"))
+  (c-lambda (Display* Window unsigned-long) int "XSetWindowBorder"))
 
 (define x-reparent-window
-  (c-lambda (Display* Window Window int int)
-            int
-            "XReparentWindow"))
+  (c-lambda (Display* Window Window int int) int "XReparentWindow"))
 
 (define x-get-transient-for-hint
   (c-lambda (Display* Window)
@@ -800,47 +727,43 @@ end-of-lambda
 
 (define x-get-text-property-list
   (lambda (display window atom)
-    (reverse ((c-lambda (Display* Window Atom) scheme-object
+    (vector->list ((c-lambda (Display* Window Atom) scheme-object
 #<<end-of-lambda
   XTextProperty name;
-  ___SCMOBJ ret;
-  int n;
+  ___SCMOBJ ret, item;
+  int num, i;
   char **list = 0;
 
-  ret = ___NUL;
   XGetTextProperty(___arg1, ___arg2, &name, ___arg3);
-  /*
-  fprintf(stderr, "XGetTextProperty returned %ld entries\n", name.nitems);
-  */
-  if (name.nitems > 0) {
-    if (XmbTextPropertyToTextList(___arg1, &name, &list, &n)) {
-      int i;
-      /*
-      fprintf(stderr, "XmbTextPropertyToTextList returned %d entries\n", n);
-      */
-      for (i = 0; i < n; ++i) {
-        ___SCMOBJ item, tmp;
-        ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(list[i],
-                                                  &item,
-                                                  ___STILL);
-        if (___err != ___FIX(___NO_ERR)) {
-          ___EXT(___release_scmobj)(ret);
-          XFree(name.value);
-          return ___err;
-        }
 #if 1
-        fprintf(stderr, "item[%d] = `%s'\n", i, list[i]);
+  fprintf(stderr, "XGetTextProperty returned %ld entries\n", name.nitems);
 #endif
-        tmp = ___EXT(___make_pair)(item, ret, ___STILL);
-        ___EXT(___release_scmobj)(ret);
+  if (name.nitems > 0) {
+    if (XmbTextPropertyToTextList(___arg1, &name, &list, &num) == Success) {
+      ret = ___alloc_scmobj(___sVECTOR, num << ___LWS, 0);
+      for (i = 0; i < num; ++i) {
+        ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(list[i], &item, 0);
+        if (___err != ___FIX(___NO_ERR))
+          break;
+#if 1
+        fprintf(stderr, "(x-get-text-property-list) item[%d] = `%s'\n", 
+                i, list[i]);
+#endif
+        ___VECTORSET(ret, ___FIX(i), item);
         ___EXT(___release_scmobj)(item);
-        ret = tmp;
       }
-    }
+    } else
+      ret = ___alloc_scmobj(___sVECTOR, 0, 0);
+    if (list)
+      XFreeStringList(list);
     XFree(name.value);
+  } else {
+#if 1
+    fprintf(stderr, "(x-get-text-property-list) is empty\n");
+#endif
+    ret = ___alloc_scmobj(___sVECTOR, 0, 0);
   }
   ___EXT(___release_scmobj)(ret);
-
   ___result = ret;
 end-of-lambda
                )
@@ -849,8 +772,7 @@ end-of-lambda
              atom))))
 
 (define x-get-class-hint
-  (c-lambda (Display* Window)
-            scheme-object
+  (c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   XClassHint hint;
   ___SCMOBJ ret;
@@ -858,24 +780,20 @@ end-of-lambda
   ret = ___NUL;
   if (XGetClassHint(___arg1, ___arg2, &hint)) {
     ___SCMOBJ name, class;
-    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_name,
-                                              &name,
-                                              ___STILL);
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_name, &name, 0);
     if (___err != ___FIX(___NO_ERR)) {
       XFree(hint.res_name);
       XFree(hint.res_class);
       return ___err;
     }
-    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_class,
-                                              &class,
-                                              ___STILL);
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_class, &class, 0);
     if (___err != ___FIX(___NO_ERR)) {
       ___EXT(___release_scmobj)(name);
       XFree(hint.res_name);
       XFree(hint.res_class);
       return ___err;
     }
-    ret = ___EXT(___make_pair)(name, class, ___STILL);
+    ret = ___EXT(___make_pair)(name, class, 0);
     ___EXT(___release_scmobj)(name);
     ___EXT(___release_scmobj)(class);
     ___EXT(___release_scmobj)(ret);
