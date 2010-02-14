@@ -121,11 +121,10 @@
 
 (define (resize-client-rel! c dx dy dw dh)
   (if (and (client? c) (client-floating? c))
-      (begin
-        (set-client-x! c (+ (client-x c) dx))
-        (set-client-y! c (+ (client-y c) dy))
-        (set-client-w! c (+ (client-w c) dw))
-        (set-client-h! c (+ (client-h c) dh))
-        (hold-client-on-screen! c)
-        (resize-client! 
-          c (client-x c) (client-y c) (client-w c) (client-h c)))))
+      (let ((x (+ (client-x c) dx))
+            (y (+ (client-y c) dy))
+            (w (+ (client-w c) dw))
+            (h (+ (client-h c) dh)))
+        (hold-client-on-screen c x y w h
+                               (lambda (x y)
+                                 (resize-client! c x y w h))))))

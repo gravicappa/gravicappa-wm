@@ -40,7 +40,7 @@
   (set-client-x! c (screen-x (client-screen c)))
   (set-client-y! c (screen-y (client-screen c))))
 
-(define (hold-client-on-screen! c)
+(define (hold-client-on-screen c x y w h proc)
   (let ((f (lambda (x w ax aw b)
              (max ax
                   (if (> (+ x w (* 2 b)) (+ ax aw))
@@ -48,15 +48,13 @@
                       x))))
         (b (client-border c))
         (s (client-screen c)))
-    (set-client-x!
-      c (f (client-x c) (client-w c) (screen-x s) (screen-w s) b))
-    (set-client-y!
-      c (f (client-y c) (client-h c) (screen-y s) (screen-h s) b))))
+    (proc (f x w (screen-x s) (screen-w s) b)
+          (f y h (screen-y s) (screen-h s) b))))
 
 (define (center-client-on-rect! c rect)
   (let ((f (lambda (a1 a2 ib1 ib2)
              (if (> (+ (- a1 (vector-ref rect ib1)) a2) (vector-ref rect ib2))
-                 (floor (+ (vector-ref rect ib1) 
+                 (floor (+ (vector-ref rect ib1)
                            (/ (- (vector-ref rect ib2) a2) 2)))
                  a1)))
         (s (client-screen c)))
@@ -203,7 +201,11 @@
     (cond ((client-wants-fullscreen? c)
            (fullscreenize-client! c))
           (else (set-client-border! c *border-width*)
-                (hold-client-on-screen! c)))
+                (hold-client-on-screen
+                  c (client-x c) (client-y c) (client-w c) (client-h c)
+                  (lambda (x y)
+                    (set-client-x! c x)
+                    (set-client-y! c y)))))
     (x-configure-window disp w border-width: (client-border c))
     (x-set-window-border disp w (get-colour disp s *border-colour*))
     (configure-client-window! c)
