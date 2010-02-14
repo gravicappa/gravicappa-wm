@@ -1,5 +1,6 @@
 (define *prev-view* "")
-(define *tags-fifo* (string-append "~/tmp/tags" (getenv "DISPLAY")))
+(define *tags-fifo* (string-append "/tmp/gravicappa-wm.tags"
+                                   (getenv "DISPLAY")))
 
 (define (to-run thunk)
   (if (procedure? thunk)
