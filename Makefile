@@ -1,11 +1,12 @@
 name = gravicappa-wm
 exe = ${name}
 version = HEAD
-DESTDIR = ${HOME}
 
+PREFIX = /usr/bin
+DESTDIR = ${PREFIX}/bin
 INSTALL = install
+GSC = gsc
 
-GSC = gambit-gsc
 LDFLAGS += -lX11
 #CFLAGS = -O0 -g
 GSC_FLAGS = -cc-options "${CFLAGS}" -ld-options "${LDFLAGS}"
