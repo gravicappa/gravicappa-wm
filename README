@@ -1,0 +1,12 @@
+Installation
+------------
+Enter the following command to build executable gravicappa-wm:
+make
+
+Running gravicappa-wm
+---------------------
+See included sample/dotxinitrc which shows possible way of running
+window manager. Those commands can be added into your .xinitrc.
+
+gravicappa-wm reads ~/.uwm.scm configuration file which is usual
+scheme source. Sample can be taken from sample/dotuwm.scm.

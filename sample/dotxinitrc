@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Options for dzen2
+font='-*-fixed-medium-r-*-*-14-*-*-*-*-*-iso10646-1'
+bg='#333333'
+fg='#bbbbbb'
+dzen_opts="-fn $font -bg #333333 -fg #bbbbbb"
+
+# Custom status script can be invoked here instead of date loop.
+while sleep 1; do
+  date
+done | dzen2 $dzen_opts -ta r -x 1000 -p &
+
+# Tags script from sample/utils.scm uses $tags_file fifo to output
+# tags list
+tags_file="/tmp/gravicappa-wm.tags$DISPLAY"
+rm "$tags_file"
+mkfifo "$tags_file"
+
+# Dzen2 displays data from $tags_file fifo
+while true; do
+  cat "$tags_file"
+done | dzen2 $dzen_opts -ta l -w 1000 -p &
+
+# Gambit does nasty things with console so need to wrap it into screen
+# session unless starting applications is impossible for still unknown
+# reason.
+exec screen -S window-manager ~/bin/gravicappa-wm
