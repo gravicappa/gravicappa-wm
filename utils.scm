@@ -1,12 +1,14 @@
 (define *x11-event-dispatcher* (make-table))
 
 (define +debug-events+ (make-parameter #f))
+(define +debug-log+ (make-parameter #f))
 
 (define (display-log . args)
-  (let ((port (current-error-port)))
-    (display ";; " port)
-    (for-each (lambda (a) (display a port)) args)
-    (newline port)))
+  (if (+debug-log+)
+      (let ((port (current-error-port)))
+        (display ";; " port)
+        (for-each (lambda (a) (display a port)) args)
+        (newline port))))
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
