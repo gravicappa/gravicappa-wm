@@ -19,6 +19,7 @@
     x-screen-count
     x-screen-of-display
     x-default-colormap-of-screen
+    x-default-colormap
     x-clear-window
     x-connection-number
     x-root-window

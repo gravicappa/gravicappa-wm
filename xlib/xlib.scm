@@ -69,20 +69,21 @@
     `(begin
        (c-declare
          ,(string-append
-            "___SCMOBJ " c-releaser "(void *ptr)\n"
+            "static ___SCMOBJ\n" c-releaser "(void *ptr)\n"
             "{\n"
             name " *p = ptr;\n"
-            "#ifdef debug_free\n"
-            "printf(\"" c-releaser "(%p)\\n\", p);\n"
-            "fflush(stdout);\n"
+            "#if XLIB_SCM_DBG_ALLOC_REPORT == 1\n"
+            "fprintf(stderr,
+                     \";;; (release \\\"" name "\\\" \\\"%p\\\")\\n\", p);\n"
             "#endif\n"
-            "#ifdef really_free\n"
             (cond
               ((string=? type "release-rc")
                "___EXT(___release_rc)(p);\n")
               ((string=? type "XFree")
-               "XFree(p);\n"))
-            "#endif\n"
+               "XFree(p);\n")
+              ((string=? type "free")
+               "free(p);\n")
+              (else (error (string-append "Unknown releaser: " type))))
             "return ___FIX(___NO_ERR);\n"
             "}\n"))
        (c-define-type ,sym ,name)
@@ -109,15 +110,15 @@
 (define-macro (%define/x-pstruct-getter name args type code)
   (let ((ret-type (string->symbol (string-append type "*/release-rc"))))
     `(define ,name
-       (c-lambda ,args
-                 ,ret-type
-                 ,(string-append
-                   type " data, *pdata;\n"
-                   code "\n"
-                   "pdata = ___CAST(" type "*, (___alloc_rc)(sizeof(data)));
-                   *pdata = data;
-                   ___result_voidstar = pdata;
-                   ")))))
+       (c-lambda
+         ,args
+         ,ret-type
+         ,(string-append
+            type " data, *pdata;\n"
+            code "\n"
+            "XLIB_SCM_ALLOC_OBJ(pdata, " type ");
+            *pdata = data;
+            ___result_voidstar = pdata;")))))
 
 ;;;============================================================================
 
@@ -129,6 +130,16 @@
 #include <X11/Xatom.h>
 #include <X11/Xproto.h>
 #include <X11/keysym.h>
+
+#define XLIB_SCM_DBG_ALLOC_REPORT 0
+
+#define XLIB_SCM_ALLOC_OBJ(var, type) \
+  do { \
+    var = ___CAST(type *, ___EXT(___alloc_rc)(sizeof(type))); \
+    if (XLIB_SCM_DBG_ALLOC_REPORT) \
+      fprintf(stderr, \";;; (alloc \\\"%s\\\" \\\"%p\\\")\\n\", #type, var); \
+  } while (0);
+
 ")
 
 ;; Declare a few types so that the function prototypes use the same
@@ -251,7 +262,7 @@ end-of-c-declare
 (define x-close-display
   (c-lambda (Display*) int "XCloseDisplay"))
 
-(define x-grab-server 
+(define x-grab-server
   (c-lambda (Display*) int "XGrabServer"))
 
 (define x-ungrab-server
@@ -274,6 +285,9 @@ end-of-c-declare
 
 (define x-default-colormap-of-screen
   (c-lambda (Screen*) Colormap "XDefaultColormapOfScreen"))
+
+(define x-default-colormap
+  (c-lambda (Display* int) Colormap "XDefaultColormap"))
 
 (define x-clear-window
   (c-lambda (Display* Window) int "XClearWindow"))
@@ -437,13 +451,13 @@ end-of-c-declare
 (define (make-x-color-box)
   ((c-lambda ()
              XColor*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XColor));")))
+             "XLIB_SCM_ALLOC_OBJ(___result_voidstar, XColor);")))
 
 (define (make-x-gc-values-box)
   ((c-lambda
      ()
      XGCValues*/release-rc
-     "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XGCValues));")))
+     "XLIB_SCM_ALLOC_OBJ(___result_voidstar, XGCValues);")))
 
 (define x-set-input-focus
   (c-lambda (Display* Window int Time) int "XSetInputFocus"))
@@ -482,10 +496,9 @@ end-of-c-declare
   (c-lambda (Display* long)
             XEvent*/release-rc
             "
-            XEvent ev;
-            XEvent *pev = 0;
+            XEvent ev, *pev = 0;
             if (XCheckMaskEvent (___arg1, ___arg2, &ev)) {
-              pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof(ev)));
+              XLIB_SCM_ALLOC_OBJ(pev, XEvent);
               *pev = ev;
             }
             ___result_voidstar = pev;
@@ -495,10 +508,9 @@ end-of-c-declare
   (c-lambda (Display*)
             XEvent*/release-rc
             "
-            XEvent ev;
-            XEvent *pev;
+            XEvent ev, *pev;
             XNextEvent(___arg1, &ev);
-            pev = ___CAST(XEvent*, ___EXT(___alloc_rc)(sizeof(ev)));
+            XLIB_SCM_ALLOC_OBJ(pev, XEvent);
             *pev = ev;
             ___result_voidstar = pev;
             "))
@@ -515,15 +527,14 @@ end-of-c-declare
   (c-lambda (Display* Window scheme-object) int
             "
             Window root, parent, *wins = 0;
-            unsigned int num;
+            unsigned int num, i;
 
             ___result = 0;
             if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
-              unsigned int i;
-
               for (i = 0; i < num; ++i) {
                 query_tree_callback(___arg3, wins[i]);
               }
+              XFree(wins);
               ___result = 1;
             }
             "))
@@ -619,7 +630,7 @@ end-of-lambda
 (define (make-x-event-box)
   ((c-lambda ()
              XEvent*/release-rc
-             "___result_voidstar = ___EXT(___alloc_rc)(sizeof(XEvent));")))
+             "XLIB_SCM_ALLOC_OBJ(___result_voidstar, XEvent);")))
 
 (define x-send-event
   (c-lambda (Display* Window bool long XEvent*) Status "XSendEvent"))
@@ -663,7 +674,7 @@ end-of-c-lambda
 
   n = ___CAST(long, ___INT(___U32VECTORLENGTH(___arg4)));
 
-#if 1
+#if 0
   fprintf(stderr, "(XChangeProperty) %d items\n", n);
 #endif
   data = (Atom *)malloc(n * sizeof(Atom));
@@ -673,7 +684,7 @@ end-of-c-lambda
   v = ___CAST(___U32*, ___BODY_AS(___arg4, ___tSUBTYPED));
   for (i = 0; i < n; ++i) {
     data[i] = v[i];
-#if 1
+#if 0
     fprintf(stderr, "(XChangeProperty) item[%d] = %ld\n", i, data[i]);
 #endif
   }
@@ -686,7 +697,7 @@ end-of-c-lambda
                               (unsigned char *)data,
                               n);
   free(data);
-#if 1
+#if 0
   fprintf(stderr, "(XChangeProperty) ret = %d\n", ___result);
 #endif
 end-of-lambda
@@ -735,7 +746,7 @@ end-of-lambda
   char **list = 0;
 
   XGetTextProperty(___arg1, ___arg2, &name, ___arg3);
-#if 1
+#if 0
   fprintf(stderr, "XGetTextProperty returned %ld entries\n", name.nitems);
 #endif
   if (name.nitems > 0) {
@@ -745,8 +756,8 @@ end-of-lambda
         ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(list[i], &item, 0);
         if (___err != ___FIX(___NO_ERR))
           break;
-#if 1
-        fprintf(stderr, "(x-get-text-property-list) item[%d] = `%s'\n", 
+#if 0
+        fprintf(stderr, "(x-get-text-property-list) item[%d] = `%s'\n",
                 i, list[i]);
 #endif
         ___VECTORSET(ret, ___FIX(i), item);
@@ -758,7 +769,7 @@ end-of-lambda
       XFreeStringList(list);
     XFree(name.value);
   } else {
-#if 1
+#if 0
     fprintf(stderr, "(x-get-text-property-list) is empty\n");
 #endif
     ret = ___alloc_scmobj(___sVECTOR, 0, 0);
