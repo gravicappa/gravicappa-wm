@@ -127,6 +127,7 @@
             (begin
               (run-hook *shutdown-hook* disp)))
         (set! *screens* '())
+        (set! disp #f)
         (##gc)))))
 
 (define (get-option option args)
