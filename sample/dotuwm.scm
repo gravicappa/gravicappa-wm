@@ -39,37 +39,37 @@
               (eval-from-string
                 (dmenu "Eval:" (lambda () '())))))))
 
-(define-global-key "s-M-h"
+(define-global-key "s-C-h"
   (lambda ()
-    (resize-client-by (current-client) 0 0 -50 0)))
+    (resize-client-rel! (current-client) 0 0 -50 0)))
 
-(define-global-key "s-M-j"
+(define-global-key "s-C-j"
   (lambda ()
-    (resize-client-by (current-client) 0 0 0 50)))
+    (resize-client-rel! (current-client) 0 0 0 50)))
 
-(define-global-key "s-M-k"
+(define-global-key "s-C-k"
   (lambda ()
-    (resize-client-by (current-client) 0 0 0 -50)))
+    (resize-client-rel! (current-client) 0 0 0 -50)))
 
-(define-global-key "s-M-l"
+(define-global-key "s-C-l"
   (lambda ()
-    (resize-client-by (current-client) 0 0 50 0)))
+    (resize-client-rel! (current-client) 0 0 50 0)))
 
 (define-global-key "s-S-h"
   (lambda ()
-    (resize-client-by (current-client) -50 0 0 0)))
+    (resize-client-rel! (current-client) -50 0 0 0)))
 
 (define-global-key "s-S-j"
   (lambda ()
-    (resize-client-by (current-client) 0 50 0 0)))
+    (resize-client-rel! (current-client) 0 50 0 0)))
 
 (define-global-key "s-S-k"
   (lambda ()
-    (resize-client-by (current-client) 0 -50 0 0)))
+    (resize-client-rel! (current-client) 0 -50 0 0)))
 
 (define-global-key "s-S-l"
   (lambda ()
-    (resize-client-by (current-client) 50 0 0 0)))
+    (resize-client-rel! (current-client) 50 0 0 0)))
 
 (define-global-key "XF86AudioRaiseVolume"
   (lambda () (shell-command& "amixer set Master 2%+")))
@@ -80,6 +80,3 @@
 (define-global-key "XF86Sleep"
   (lambda ()
     (shell-command& "sudo pm-suspend")))
-
-(define-global-key "XF86AudioMute"
-  (lambda () (shell-command& "amixer set Master toggle")))
