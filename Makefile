@@ -2,8 +2,7 @@ name = gravicappa-wm
 exe = ${name}
 version = HEAD
 
-PREFIX = /usr/bin
-DESTDIR = ${PREFIX}/bin
+DESTDIR = /usr
 INSTALL = install
 GSC = gsc
 
