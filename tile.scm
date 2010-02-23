@@ -143,4 +143,5 @@
   (update-visibility disp screen)
   (focus-client disp #f)
   (tile *tile-ratio* disp screen)
-  (restack disp screen))
+  (restack disp screen)
+  (x-sync disp #f))
