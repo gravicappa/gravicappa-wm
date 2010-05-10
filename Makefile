@@ -2,9 +2,9 @@ name = gravicappa-wm
 exe = ${name}
 version = HEAD
 
-DESTDIR = /usr
-INSTALL = install
-GSC = gsc
+destdir = /usr
+install = install
+gsc = gsc
 
 LDFLAGS += -lX11
 #CFLAGS = -O0 -g
@@ -21,13 +21,13 @@ clean: clean-obj
 	-rm *.c *.o ${executable} 2>/dev/null
 
 ${exe}: ${src} ${deps}
-	${GSC} ${GSC_FLAGS} -exe -o $@ ${src}
+	${gsc} ${GSC_FLAGS} -exe -o $@ ${src}
 
 clean-obj:
 	-rm *.o* 2> /dev/null
 
 install:
-	${INSTALL} -m 755 ${exe} ${DESTDIR}/bin/
+	${install} -m 755 ${exe} ${destdir}/bin/
 
 pack: 
 	git archive --format=tar --prefix=${name}-${version}/ ${version}^{tree} \
