@@ -567,14 +567,13 @@ end-of-lambda
     window)))
 
 (define (x-get-wm-protocols display window)
-  (u32vector->list
-    ((c-lambda (Display* Window) scheme-object
+  (let ((ret ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Atom *atoms = 0;
   int num, i;
   ___SCMOBJ ret;
 
-  ___result = ___FIX(___UNKNOWN_ERR);
+  ___result = 0;
   if (XGetWMProtocols(___arg1, ___arg2, &atoms, &num)) {
     ret = ___alloc_scmobj(___sU32VECTOR, num << 2, 0);
     if (!___FIXNUMP(ret)) {
@@ -590,6 +589,9 @@ end-of-lambda
     )
     display
     window)))
+    (if (u32vector? ret)
+        (u32vector->list ret)
+        #f)))
 
 (define x-window-parent
   (c-lambda (Display* Window)
