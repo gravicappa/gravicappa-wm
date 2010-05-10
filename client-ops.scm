@@ -61,7 +61,8 @@
   (if client
       (let* ((s (client-screen client))
              (clients (filter client-tiled? (screen-clients s))))
-        (if (and (eq? client (car clients))
+        (if (and (pair? clients)
+                 (eq? client (car clients))
                  (pair? (cdr clients))
                  (cadr clients))
             (move-client-to-top! (cadr clients) (screen-clients s))
