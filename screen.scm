@@ -1,90 +1,90 @@
-(define-structure* screen
-  id x y w h root display clients focus-stack view)
+(define-record-type screen
+  (make-screen id x y w h root display view clients focus-stack)
+  screen?
+  (id screen-id)
+  (x screen-x set-screen-x!)
+  (y screen-y set-screen-y!)
+  (w screen-w set-screen-w!)
+  (h screen-h set-screen-h!)
+  (root screen-root)
+  (display screen-display)
+  (clients screen-clients set-screen-clients!)
+  (focus-stack screen-focus-stack set-screen-focus-stack!)
+  (view screen-view set-screen-view!))
 
-(define *screens* (list))
+(define *screens* (vector))
 
 (define (current-screen)
-  (car *screens*))
+  (vector-ref *screens* 0))
 
 (define (current-view . args)
   (if (pair? args)
       (set-screen-view! (current-screen) (car args))
       (screen-view (current-screen))))
 
-(define +root-event-mask+ (bitwise-ior +substructure-redirect-mask+
-                                       +substructure-notify-mask+
-                                       +button-press-mask+
-                                       +enter-window-mask+
-                                       +leave-window-mask+
-                                       +structure-notify-mask+))
+(define +root-event-mask+ (bitwise-ior x#+substructure-redirect-mask+
+                                       x#+substructure-notify-mask+
+                                       x#+button-press-mask+
+                                       x#+enter-window-mask+
+                                       x#+leave-window-mask+
+                                       x#+structure-notify-mask+))
 
-(define (init-screen disp i)
-  (let* ((root (x-root-window disp i))
-         (screen (make-screen id: i
-                              x: 0
-                              y: 0
-                              w: (x-display-width disp i)
-                              h: (x-display-height disp i)
-                              root: root
-                              display: disp
-                              view: *initial-view*
-                              clients: (list #f)
-                              focus-stack: (list #f))))
-    (x-change-property-atoms disp
+(define (init-screen dpy i)
+  (let* ((root (x-root-window dpy i))
+         (screen (make-screen i
+                              0
+                              0
+                              (x-display-width dpy i)
+                              (x-display-height dpy i)
+                              root
+                              dpy
+                              (initial-view)
+                              (list #f)
+                              (list #f))))
+    (x-change-property-atoms dpy
                              root
-                             (get-atom "_NET_SUPPORTED")
-                             (list (get-atom "_NET_SUPPORTED")
-                                   (get-atom "_NET_WM_NAME")))
-    (x-change-window-attributes disp root event-mask: +root-event-mask+)
-    (x-select-input disp root +root-event-mask+)
+                             (xatom "_NET_SUPPORTED")
+                             (list (xatom "_NET_SUPPORTED")
+                                   (xatom "_NET_WM_NAME")))
+    (x-change-window-attributes dpy root event-mask: +root-event-mask+)
+    (x-select-input dpy root +root-event-mask+)
     screen))
 
-(define (init-all-screens disp)
-  (let ((num (x-screen-count disp)))
-    (let loop ((i 0)
-               (acc '()))
-      (if (< i num)
-          (loop (+ i 1) (cons (init-screen disp i) acc))
-          (set! *screens* (reverse acc))))))
+(define (init-all-screens!)
+  (let ((num (x-screen-count (current-display))))
+    (set! *screens* (make-vector num))
+    (do ((i 0 (+ i 1)))
+        ((>= i num))
+      (vector-set! *screens* i (init-screen (current-display) i)))))
+
+(define (find-in-vector test v)
+  (let loop ((i 0))
+    (if (< i (vector-length v))
+        (if (test (vector-ref v i))
+            (vector-ref v i)
+            (loop (+ i 1)))
+        #f)))
 
 (define (find-screen parent)
-  (find-if (lambda (s) (eq? (screen-root s) parent)) *screens*))
+  (find-in-vector (lambda (s) (eq? (screen-root s) parent)) *screens*))
 
 (define (find-client-on-screen window screen)
   (find-if (lambda (c) (eq? (client-window c) window))
            (cdr (screen-clients screen))))
 
 (define (find-client window)
-  (let loop ((s *screens*))
-    (if (pair? s)
-        (let ((c (find-client-on-screen window (car s))))
-          (if c
-              c
-              (loop (cdr s))))
+  (let loop ((i 0))
+    (if (< i (vector-length *screens*))
+        (or (find-client-on-screen window (vector-ref *screens* i))
+            (loop (+ i 1)))
         #f)))
 
-(define (init-colour! c color display cmap)
-  (let ((component (lambda (mask shift)
-                     (arithmetic-shift (bitwise-and color mask) shift))))
-    (cond ((string? color)
-           (= (x-parse-color display cmap color c) 1))
-          ((number? color)
-           (set-x-color-red! c (component #xff0000 -8))
-           (set-x-color-green! c (component #x00ff00 0))
-           (set-x-color-blue! c (component #x0000ff 8))
-           #t))))
-
-(define get-colour
-  (let ((cache (make-table)))
-    (lambda (display screen color)
-      (let ((cached (table-ref cache (cons (screen-id screen) color) #f)))
-        (if cached
-            cached
-            (let ((cmap (x-default-colormap display (screen-id screen)))
-                  (c (make-x-color-box)))
-              (if (and (init-colour! c color display cmap)
-                       (= (x-alloc-color display cmap c) 1))
-                  (let ((c (x-color-pixel c)))
-                    (table-set! cache (cons (screen-id screen) color) c)
-                    c)
-                  #f)))))))
+(define (pickup-windows!)
+  (do ((i 0 (+ i 1)))
+      ((>= i (vector-length *screens*)))
+    (for-each
+      (lambda (w)
+        (if (not (= w x#+none+))
+            (pickup-window (current-display) (vector-ref *screens* i) w)))
+      (x-query-tree (current-display)
+                    (screen-root (vector-ref *screens* i))))))

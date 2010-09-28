@@ -1,14 +1,18 @@
-(define *x11-event-dispatcher* (make-table))
+(define x11-event-handlers (make-table))
 
-(define +debug-events+ (make-parameter #f))
-(define +debug-log+ (make-parameter #f))
+(define debug-events? (make-parameter #f))
+(define debug-loglevel (make-parameter 1))
 
-(define (display-log . args)
-  (if (+debug-log+)
+(define (display-log level . args)
+  (if (<= level (debug-loglevel))
       (let ((port (current-error-port)))
         (display ";; " port)
         (for-each (lambda (a) (display a port)) args)
-        (newline port))))
+        (newline port)
+        (force-output port))))
+
+(define (add-xevent-handler! ev proc)
+  (table-set! x11-event-handlers ev proc))
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
@@ -20,21 +24,6 @@
       (if found
           (car found)
           #f))))
-
-(define (make-hook . initial) 
-  (cons (lambda args #f) initial))
-
-(define (run-single-hook fn args)
-  (apply (cond ((procedure? fn) fn)
-               ((or (symbol? fn) (pair? fn)) (eval fn)))
-         args))
-
-(define (run-hook hook . args)
-  (for-each (lambda (h) (run-single-hook h args))
-            hook))
-
-(define (add-hook hook fn)
-  (set-cdr! hook (append (cdr hook) (list fn))))
 
 (eval-at-macroexpand
   (define (complement fn)
@@ -94,6 +83,7 @@
 
 (define (log-x-event name ev)
   (display-log
+    5
     "\n"
     "[x11] event (name: " name ")\n"
     "            (send-event?: " (x-any-event-send-event? ev) ")\n"
@@ -109,12 +99,18 @@
              ,@(if (find 'ev args)
                    `((ev ,ev))
                    '()))
-         (if (+debug-events+)
+         (if (debug-events?)
              (log-x-event ',event ,ev))
          ,@body))))
 
 (define-macro (define-x-event-handler args . body)
-  `(table-set!
-    *x11-event-dispatcher*
-    ,(string->symbol (string-append "+" (symbol->string (car args)) "+"))
+  `(add-xevent-handler!
+    ,(string->symbol (string-append "x#+" (symbol->string (car args)) "+"))
     (lambda/x-event ,(car args) ,(cdr args) ,@body)))
+
+(define (last lst)
+  (if (pair? lst)
+      (if (pair? (cdr lst))
+          (last (cdr lst))
+          (car lst))
+      #f))

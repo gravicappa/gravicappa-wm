@@ -30,9 +30,9 @@ clean: clean-obj
 clean-generated:
 	-rm -f *%.scm
 
-events: xlib-events%.scm
-accessors: xlib-accessors%.scm
-constants: xlib-constants%.scm
+#events: xlib-events%.scm
+#accessors: xlib-accessors%.scm
+#constants: xlib-constants%.scm
 
 xlib-events%.scm: /usr/include/X11/Xlib.h
 	./make-xlib-events > $@

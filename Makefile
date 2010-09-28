@@ -10,7 +10,7 @@ LDFLAGS += -lX11
 #CFLAGS = -O0 -g
 GSC_FLAGS = -cc-options "${CFLAGS}" -ld-options "${LDFLAGS}"
 CC = gcc
-src = xlib/xlib.scm main.scm
+src = xlib/xlib.scm gravicappa-wm.scm
 deps = ${wildcard *.scm}
 
 .PHONY: all clean clean-obj xlib install

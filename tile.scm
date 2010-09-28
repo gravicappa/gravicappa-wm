@@ -29,36 +29,36 @@
                              (client-y c))))))))
 
 (define (focus-client disp client)
-  (let* ((s (if client (client-screen client) (current-screen)))
+  (let* ((s (current-screen))
          (c (if (not (and client (client-visible? client)))
                 (find-if client-visible? (screen-focus-stack s))
                 client)))
     (if (and (current-client) (not (eq? (current-client) c)))
         (begin
           (x-ungrab-button disp
-                           +any-button+
-                           +any-modifier+
+                           x#+any-button+
+                           x#+any-modifier+
                            (client-window (current-client)))
           (x-set-window-border disp
                                (client-window (current-client))
-                               (get-colour disp s *border-colour*))))
+                               (get-colour disp s (border-colour)))))
     (cond (c (move-client-to-top! c (screen-focus-stack s))
              (grab-buttons! c)
              (x-set-window-border
                disp
                (client-window c)
-               (get-colour disp s *selected-border-colour*))
+               (get-colour disp s (selected-border-colour)))
              (x-set-input-focus disp
                                 (client-window c)
-                                +revert-to-pointer-root+
-                                +current-time+)
+                                x#+revert-to-pointer-root+
+                                x#+current-time+)
              (if (client-floating? c)
                  (x-raise-window disp (client-window c))))
           (else (x-set-input-focus disp
                                    (screen-root s)
-                                   +revert-to-pointer-root+
-                                   +current-time+)))
-    (set! current-client (lambda () c))))
+                                   x#+revert-to-pointer-root+
+                                   x#+current-time+)))
+    (current-client c)))
 
 (define (restack disp screen)
   (if (current-client)
@@ -66,24 +66,24 @@
         (if (client-floating? (current-client))
             (x-raise-window disp (client-window (current-client))))
         (let loop ((clients (filter client-tiled? (screen-clients screen)))
-                   (sibling +none+))
+                   (sibling x#+none+))
           (if (pair? clients)
               (begin
                 (x-configure-window disp
                                     (client-window (car clients))
                                     sibling: sibling
-                                    stack-mode: +below+)
+                                    stack-mode: x#+below+)
                 (loop (cdr clients) (client-window (car clients))))))
         (x-sync disp #f)
         (let loop ()
-          (if (x-check-mask-event disp +enter-window-mask+)
+          (if (x-check-mask-event disp x#+enter-window-mask+)
               (loop))))))
 
-(define (managed-area screen)
-  (values (screen-x screen)
-          (+ (screen-y screen) *bar-height*)
-          (screen-w screen)
-          (- (screen-h screen) *bar-height*)))
+(define (call-with-managed-area screen ret)
+  (ret (screen-x screen)
+       (+ (screen-y screen) (bar-height))
+       (screen-w screen)
+       (- (screen-h screen) (bar-height))))
 
 (define (no-border dim client)
   (- dim (* 2 (client-border client))))
@@ -110,15 +110,15 @@
 ;            (resize-client! c x y (no-border w c) (no-border ch c))
 ;            (set! y (+ y (client-h c) (* 2 (client-border c))))
 ;            (if (> (client-h c) ch)
-;                (display-log "Client is higher than said to be ("
-;                             (client-h c) " > " ch ")")))
+;                (display-log 10 "Client is higher than said to be ("
+;                                (client-h c) " > " ch ")")))
 ;          clients))))
 
-(define (tile tile-ratio disp screen)
-  (call-with-values
-    (lambda () (managed-area screen))
+(define (tile disp screen)
+  (call-with-managed-area
+    screen
     (lambda (sx sy sw sh)
-      (let ((zoom-width (* sw tile-ratio))
+      (let ((zoom-width (* sw (tile-ratio)))
             (clients (filter client-tiled? (screen-clients screen))))
         (cond ((null? clients))
               ((null? (cdr clients))
@@ -139,9 +139,11 @@
                                   (- sw zoom-width)
                                   sh)))))))
 
-(define (arrange-screen disp screen)
-  (update-visibility disp screen)
-  (focus-client disp #f)
-  (tile *tile-ratio* disp screen)
-  (restack disp screen)
-  (x-sync disp #f))
+(define arrange-clients tile)
+
+(define (arrange-screen dpy screen)
+  (update-visibility dpy screen)
+  (focus-client dpy #f)
+  (arrange-clients dpy screen)
+  (restack dpy screen)
+  (x-sync dpy #f))
