@@ -1,3 +1,6 @@
+;; including library where pipe-command, (un)tag, view-tag,
+;; update-tag-status, toggle-fullscreen, eval-from-string, split-string
+;; are defined.
 (include "~/dev/uwm/sample/utils.scm")
 
 (border-colour #xf0f0a0)
@@ -21,9 +24,22 @@
                                       (list "-p" title))
                         thunk))
 
+;; After start we see updated tagbar
 (update-tag-status)
 
+;; Updating tagbar every time it changes
 (define update-tag-hook update-tag-status)
+
+;; All hooks are:
+;; * shutdown-hook — is called with no arguments on exit
+;; * (currently not used) manage-hook — is called with 
+;;   (display window window-attrib screen) arguments when new window is managed.
+;; * (currently not used) unmanage-hook — is called with (client)
+;;   argument when window is unmanaged.
+;; * update-tag-hook — is called with no arguments when taglist is updated.
+;; * apply-rules-hook — is called with (client classname) arguments when
+;;   new client is created before it is mapped. Automatic tagging is
+;;   done here.
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
