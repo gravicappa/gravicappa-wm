@@ -55,7 +55,7 @@
 
 (define (fullscreenize-client! c)
   (set-client-border! c 0)
-  (set-client-fullscreen! #t)
+  (set-client-fullscreen! c #t)
   (set-client-x! c (screen-x (current-screen)))
   (set-client-y! c (screen-y (current-screen))))
 
