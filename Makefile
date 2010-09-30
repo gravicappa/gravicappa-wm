@@ -10,6 +10,9 @@ LDFLAGS += -lX11
 #CFLAGS = -O0 -g
 GSC_FLAGS = -cc-options "${CFLAGS}" -ld-options "${LDFLAGS}"
 CC = gcc
+
+-include config.mk
+
 src = xlib/xlib.scm gravicappa-wm.scm
 deps = ${wildcard *.scm}
 
