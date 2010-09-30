@@ -114,7 +114,7 @@
 ;                                (client-h c) " > " ch ")")))
 ;          clients))))
 
-(define (tile disp screen)
+(define (tile screen)
   (call-with-managed-area
     screen
     (lambda (sx sy sw sh)
@@ -144,6 +144,6 @@
 (define (arrange-screen dpy screen)
   (update-visibility dpy screen)
   (focus-client dpy #f)
-  (arrange-clients dpy screen)
+  (arrange-clients screen)
   (restack dpy screen)
   (x-sync dpy #f))
