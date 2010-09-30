@@ -7,13 +7,13 @@
 (define (client-tiled? c)
   (and (client-visible? c) (not (client-floating? c))))
 
-(define (update-visibility disp screen)
+(define (update-visibility dpy screen)
   (let loop ((clients (cdr (screen-clients screen))))
     (if (pair? clients)
         (let ((c (car clients)))
           (cond
             ((client-visible? c)
-             (x-move-window disp (client-window c) (client-x c) (client-y c))
+             (x-move-window dpy (client-window c) (client-x c) (client-y c))
              (if (client-floating? c)
                  (resize-client! c
                                  (client-x c)
@@ -23,7 +23,7 @@
              (loop (cdr clients)))
             (else
               (loop (cdr clients))
-              (x-move-window disp
+              (x-move-window dpy
                              (client-window c)
                              (+ (client-x c) (* 2 (screen-w screen)))
                              (client-y c))))))))
