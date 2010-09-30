@@ -84,7 +84,7 @@
               (loop (string-append acc (string c)))))
         acc)))
 
-(define (pipe-command cmd thunk)
+(define (pipe-command cmd lines)
   (with-exception-handler
     (lambda (e) "")
     (lambda ()
@@ -99,7 +99,7 @@
                               (display line p)
                               (newline p)
                               (set! s (read-chars s #f p)))
-                            (thunk))
+                            lines)
                   (force-output p)
                   (close-output-port p)
                   (read-chars s #t p))))

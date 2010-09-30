@@ -9,20 +9,19 @@
 (bar-height 16)
 (tile-ratio 56/100)
 
+(define logger '("log" "stat/timing"))
+
 (define (update-timing-stats)
   (let* ((sec (inexact->exact (floor (time->seconds (current-time)))))
-         (view "web")
-         (s (string-append "echo "
-                           (number->string sec)
-                           " '"
-                           (current-view)
-                           "' >> ~/stat/timings &")))
-    (shell-command s)))
+         (s (string-append (number->string sec)
+                           " switch_to "
+                           (current-view))))
+    (pipe-command logger (list s))))
 
-(define (dmenu title thunk)
+(define (dmenu title lines)
   (pipe-command (append (split-string #\space (getenv "DMENU"))
                                       (list "-p" title))
-                        thunk))
+                        lines))
 
 ;; After start we see updated tagbar
 (update-tag-status)
@@ -58,11 +57,11 @@
                                                      (current-view))))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
-                              (view-tag (dmenu "View:" collect-all-tags))
+                              (view-tag (dmenu "View:" (collect-all-tags)))
                               (update-timing-stats)))
 
 (bind-key x#+mod4-mask+ "e"
-          (lambda () (eval-from-string (dmenu "Eval:" (lambda () '())))))
+          (lambda () (eval-from-string (dmenu "Eval:" '()))))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+control-mask+)
           "h"
@@ -101,8 +100,7 @@
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+shift-mask+)
           "l"
-          (lambda ()
-            (resize-client-rel! (current-client) 50 0 0 0)))
+          (lambda () (resize-client-rel! (current-client) 50 0 0 0)))
 
 (bind-key 0 "XF86AudioRaiseVolume"
           (lambda () (shell-command "amixer set Master 2%+ &")))
