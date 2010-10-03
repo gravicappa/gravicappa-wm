@@ -3,7 +3,7 @@
 fn mail {
 	mails=`{find -L $HOME/mail/.new -type f | wc -l}
 	if (test $mails -gt 0)
-		echo "mail:$mails |"
+		echo mail:$mails '|'
 }
 
 fn update {
@@ -12,7 +12,7 @@ fn update {
 																					 bat = $3 " " $4 " " $5; 
 																			   }
 													/^Thermal 0:/ {
-																					temp = $4
+																					temp = $4 "°C"
 																		    }
 													END {
 														print temp " | " bat
