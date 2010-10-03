@@ -48,7 +48,7 @@
       (begin
         (for-each
           (lambda (t) (untag-client c t))
-          (parse-tags (dmenu "Untag client:" (lambda () (client-tags c))))))))
+          (parse-tags (dmenu "Untag client:" (client-tags c)))))))
 
 (define (view-tag tag)
   (if (and (string? tag) (positive? (string-length tag)))
