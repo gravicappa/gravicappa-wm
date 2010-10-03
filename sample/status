@@ -1,0 +1,21 @@
+#!/bin/sh
+
+mail() {
+	mails=`find -L $HOME/mail/.new -type f | wc -l`
+	if [ "$mails" -gt 0 ] ; then
+		echo "mail:$mails |"
+	fi
+}
+
+status() {
+  battery="$(acpi -b | tr , ' ' | awk '{print $3 " " $4}')"
+  temp="$(acpi -t | sed -n 's/.*\s\([0-9.]\+\).*/\1/p' | head -1)°C"
+	vol=$(amixer get Master | grep 'Mono: Playback' | awk '{print $4}')
+	#ppp="ppp0: `cat /proc/net/dev | grep ppp0 | awk '{ sub (/[:]/," "); print $2 }'`"
+  echo `mail` $temp '|' $vol '|' $battery '|'  `date '+%a %d %b, %H:%M'` 
+}
+
+while true ;do
+  status
+  sleep 5
+done

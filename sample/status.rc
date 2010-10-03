@@ -1,0 +1,26 @@
+#!/usr/bin/env rc
+
+fn mail {
+	mails=`{find -L $HOME/mail/.new -type f | wc -l}
+	if (test $mails -gt 0)
+		echo "mail:$mails |"
+}
+
+fn update {
+	acpi=`{acpi -b -t | awk '/^Battery 0:/ {
+																					 gsub(/,/, "");
+																					 bat = $3 " " $4 " " $5; 
+																			   }
+													/^Thermal 0:/ {
+																					temp = $4
+																		    }
+													END {
+														print temp " | " bat
+													}'}
+	vol=`{amixer get Master | awk '/Mono: Playback/ {print $4}'}
+	echo `{mail} $vol '|' $acpi '|' `{date '+%a %d %b, %H:%M'}
+}
+
+update
+while (sleep 5)
+	update
