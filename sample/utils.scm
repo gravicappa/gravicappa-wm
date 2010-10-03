@@ -39,10 +39,9 @@
 
 (define (tag c)
   (if c
-      (let ((all-tags (collect-all-tags)))
-        (for-each
-          (lambda (t) (tag-client c t))
-          (parse-tags (dmenu "Tag client:" (lambda () all-tags)))))))
+      (for-each
+        (lambda (t) (tag-client c t))
+        (parse-tags (dmenu "Tag client:" (collect-all-tags))))))
 
 (define (untag c)
   (if c
