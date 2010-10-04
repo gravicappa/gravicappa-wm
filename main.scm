@@ -5,7 +5,7 @@
 (define selected-border-colour (make-parameter #x00af00))
 (define border-width (make-parameter 2))
 (define bar-height (make-parameter 16))
-(define initial-view (make-parameter "-"))
+(define initial-view (make-parameter "gravicappa-wm"))
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
@@ -17,10 +17,8 @@
 (bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
 
 (define shutdown-hook (lambda () #f))
-(define manage-hook (lambda (display window window-attrib screen) #f))
-(define unmanage-hook (lambda (client) #f))
 (define update-tag-hook (lambda () #f))
-(define apply-rules-hook (lambda (client classname) #f))
+(define client-create-hook (lambda (client classname) #f))
 
 (define current-client (make-parameter #f))
 (define current-display (make-parameter #f))

@@ -230,7 +230,7 @@
     (x-ungrab-button dpy x#+any-button+ x#+any-modifier+ w)
     (update-client-title! c)
     (process-transient-for-hint! c)
-    (apply-rules-hook c (x-get-class-hint dpy w))
+    (client-create-hook c (x-get-class-hint dpy w))
     (if (null? (client-tags c))
         (set-client-tags! c (list (current-view))))
     (update-tag-hook)
