@@ -18,9 +18,18 @@
               (newline))))
       #t)))
 
+(define (string-current-layout)
+  (if (eq? arrange fullscreen)
+      "[ ]"
+      "[]="))
+
 (define (update-tag-status)
   (let loop ((tags (collect-all-tags))
-             (str (string-append (current-view) " | " (prev-view))))
+             (str (string-append (string-current-layout)
+                                 " | "
+                                 (current-view)
+                                 " | "
+                                 (prev-view))))
     (if (pair? tags)
         (loop (cdr tags)
               (if (or (string=? (car tags) (current-view))
@@ -62,7 +71,8 @@
       (if (current-client)
           (begin
             (set! arrange fullscreen))))
-  (arrange-screen (current-display) (current-screen)))
+  (arrange-screen (current-display) (current-screen))
+  (update-tag-status))
 
 (define (eval-from-string str)
   (if (string? str)
