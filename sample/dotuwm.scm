@@ -31,14 +31,12 @@
 
 ;; All hooks are:
 ;; * shutdown-hook — is called with no arguments on exit
-;; * (currently not used) manage-hook — is called with 
-;;   (display window window-attrib screen) arguments when new window is managed.
-;; * (currently not used) unmanage-hook — is called with (client)
-;;   argument when window is unmanaged.
 ;; * update-tag-hook — is called with no arguments when taglist is updated.
-;; * apply-rules-hook — is called with (client classname) arguments when
+;; * client-create-hook — is called with (client classname) arguments when
 ;;   new client is created before it is mapped. Automatic tagging is
-;;   done here.
+;;   done here. classname is cons with x11 window class information.
+;; * arrange — is called with (screen) arguments when layout is to be
+;;   arranged.
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
