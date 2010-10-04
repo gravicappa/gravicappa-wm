@@ -5,7 +5,6 @@
 (define selected-border-colour (make-parameter #x00af00))
 (define border-width (make-parameter 2))
 (define bar-height (make-parameter 16))
-(define tile-ratio (make-parameter 56/100))
 (define initial-view (make-parameter "-"))
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
