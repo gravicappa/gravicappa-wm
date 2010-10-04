@@ -38,17 +38,16 @@
       '()))
 
 (define (tag c)
-  (if c
+  (if (client? c)
       (for-each
         (lambda (t) (tag-client c t))
         (parse-tags (dmenu "Tag client:" (collect-all-tags))))))
 
 (define (untag c)
-  (if c
-      (begin
-        (for-each
-          (lambda (t) (untag-client c t))
-          (parse-tags (dmenu "Untag client:" (client-tags c)))))))
+  (if (client? c)
+      (for-each
+        (lambda (t) (untag-client c t))
+        (parse-tags (dmenu "Untag client:" (client-tags c))))))
 
 (define (view-tag tag)
   (if (and (string? tag) (positive? (string-length tag)))
@@ -58,15 +57,12 @@
         (to-run (lambda () (view-clients tag))))))
 
 (define (toggle-fullscreen)
-  (if (current-client)
-      (cond
-        ((string=? (current-view) ".")
-         (untag-client (current-client) ".")
-         (view-tag (prev-view)))
-        (else
-          (untag-all-clients ".")
-          (tag-client (current-client) ".")
-          (view-tag ".")))))
+  (if (eq? arrange fullscreen)
+      (set! arrange (tiler 56/100))
+      (if (current-client)
+          (begin
+            (set! arrange fullscreen))))
+  (arrange-screen (current-display) (current-screen)))
 
 (define (eval-from-string str)
   (if (string? str)
