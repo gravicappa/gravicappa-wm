@@ -7,15 +7,21 @@ mail() {
 	fi
 }
 
-status() {
-  battery="$(acpi -b | tr , ' ' | awk '{print $3 " " $4}')"
-  temp="$(acpi -t | sed -n 's/.*\s\([0-9.]\+\).*/\1/p' | head -1)°C"
-	vol=$(amixer get Master | grep 'Mono: Playback' | awk '{print $4}')
-	#ppp="ppp0: `cat /proc/net/dev | grep ppp0 | awk '{ sub (/[:]/," "); print $2 }'`"
-  echo `mail` $temp '|' $vol '|' $battery '|'  `date '+%a %d %b, %H:%M'` 
+update() {
+  acpi=`acpi -b -t | awk '/^Battery 0:/ {
+                                          gsub(/,/, "");
+                                          bat = $3 " " $4 " " $5; 
+                                        }
+                          /^Thermal 0:/ {
+                                          temp = $4 "°C"
+                                        }
+                          END {
+                            print temp " | " bat
+                          }'`
+  vol=`amixer get Master | awk '/Mono: Playback/ {print $4}'`
+  echo `mail` $vol '|' $acpi '|' `date '+%a %d %b, %H:%M'`
 }
 
-while true ;do
-  status
+while update; do
   sleep 5
-done
+update
