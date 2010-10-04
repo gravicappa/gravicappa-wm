@@ -7,3 +7,5 @@
 *.c
 *.log
 uwm
+gravicappa-wm
+config.mk
