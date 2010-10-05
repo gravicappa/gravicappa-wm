@@ -60,7 +60,7 @@
                                    (screen-root s)
                                    x#+revert-to-pointer-root+
                                    x#+current-time+)))
-    (current-client c)))
+    (set! current-client (lambda () c))))
 
 (define (restack dpy screen)
   (if (current-client)
@@ -90,11 +90,11 @@
 (define (no-border a client)
   (- a (* 2 (client-border client))))
 
-(define arrange (tiler 56/100))
+(define current-layout (lambda () (tiler 56/100)))
 
 (define (arrange-screen dpy screen)
   (update-visibility dpy screen)
   (focus-client dpy #f)
-  (arrange screen)
+  ((current-layout) screen)
   (restack dpy screen)
   (x-sync dpy #f))

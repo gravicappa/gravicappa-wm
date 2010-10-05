@@ -5,7 +5,7 @@
 (define selected-border-colour (make-parameter #x00af00))
 (define border-width (make-parameter 2))
 (define bar-height (make-parameter 16))
-(define initial-view (make-parameter "gravicappa-wm"))
+(define initial-view (make-parameter "gravicappa-wm!"))
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
@@ -20,8 +20,8 @@
 (define update-tag-hook (lambda () #f))
 (define client-create-hook (lambda (client classname) #f))
 
-(define current-client (make-parameter #f))
-(define current-display (make-parameter #f))
+(define current-client (lambda () #f))
+(define current-display (lambda () #f))
 
 (define *atoms* (make-table))
 
@@ -106,7 +106,8 @@
 (define (main . args)
   (dynamic-wind
     (lambda ()
-      (current-display (x-open-display #f))
+      (set! current-display (let ((dpy (x-open-display #f)))
+                              (lambda () dpy)))
       (if (not (current-display))
           (error "Unable to open display"))
       (init!))
@@ -116,5 +117,5 @@
     (lambda ()
       (shutdown-hook)
       (set! *screens* (vector))
-      (current-display #f)
+      (set! current-display (lambda () #f))
       (##gc))))

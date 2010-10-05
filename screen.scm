@@ -13,14 +13,12 @@
   (view screen-view set-screen-view!))
 
 (define *screens* (vector))
+(define *current-screen-index* 0)
 
 (define (current-screen)
-  (vector-ref *screens* 0))
+  (vector-ref *screens* *current-screen-index*))
 
-(define (current-view . args)
-  (if (pair? args)
-      (set-screen-view! (current-screen) (car args))
-      (screen-view (current-screen))))
+(define (current-view) (screen-view (current-screen)))
 
 (define +root-event-mask+ (bitwise-ior x#+substructure-redirect-mask+
                                        x#+substructure-notify-mask+

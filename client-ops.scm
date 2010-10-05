@@ -77,8 +77,9 @@
         (cdr (screen-clients (vector-ref *screens* i)))))
     (map car (table->list tags-table))))
 
-(define (view-clients tag)
-  (current-view tag)
+(define (view-clients tag proc)
+  (set-screen-view! (current-screen) tag)
+  (set! current-layout (lambda () proc))
   (update-tag-hook)
   (let ((s (current-screen)))
     (arrange-screen (current-display) s)))
