@@ -1,3 +1,5 @@
+;; including library where (un)tag, view-tag, update-tag-status,
+;; toggle-fullscreen, eval-from-string, split-string are defined
 (include "~/dev/uwm/sample/utils.scm")
 (include "~/dev/uwm/sample/pipe-command.scm")
 
@@ -61,16 +63,13 @@
                                    (tiler 56/100)
                                    fullscreen)))
 
-(define (current-time-seconds) 
-  (inexact->exact (floor (time->seconds (current-time)))))
+(define (tm-log . args)
+  (let* ((curtime (inexact->exact (floor (time->seconds (current-time)))))
+         (str (string-append-list " " (cons (number->string curtime) args))))
+    (thread-start!
+      (make-thread (lambda () (pipe-command logger (list str)))))))
 
-(define (update-timing-stats)
-  (thread-start!
-    (make-thread
-      (lambda ()
-        (pipe-command logger (list (string-append (current-time-seconds)
-                                                  " switch_to "
-                                                  (current-view))))))))
+(define (tm-switch-to) (tm-log "switch_to" (current-view)))
 
 (define (dmenu title lines)
   (pipe-command (append (split-string #\space (getenv "DMENU"))
@@ -83,9 +82,7 @@
 ;; Updating tagbar every time it changes
 (define update-tag-hook update-tag-status)
 
-(set! shutdown-hook (lambda ()
-                      (pipe-command logger (list (current-time-seconds)
-                                                 " exit"))))
+(set! shutdown-hook (lambda () (tm-log "exit")))
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
@@ -96,20 +93,18 @@
 (bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
 (bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
 (bind-key x#+mod4-mask+ "p" (lambda () (shell-command "$DMENU_RUN &")))
-(bind-key x#+mod4-mask+ "f" (lambda ()
-                              (toggle-fullscreen)
-                              (update-timing-stats)))
+(bind-key x#+mod4-mask+ "f" (lambda () (toggle-fullscreen)))
 (bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
 (bind-key x#+mod4-mask+ "r" (lambda ()
                               (view-tag (prev-view))
-                              (update-timing-stats)))
+                              (tm-switch-to)))
 
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
                                                      (current-view))))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
                               (view-tag (dmenu "View:" (collect-all-tags)))
-                              (update-timing-stats)))
+                              (tm-switch-to)))
 
 (bind-key x#+mod4-mask+ "e"
           (lambda () (eval-from-string (dmenu "Eval:" '()))))

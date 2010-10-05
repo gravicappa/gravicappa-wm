@@ -19,6 +19,14 @@
               (reverse (cons (substring s start len) acc))
               (reverse acc))))))
 
+(define (string-append-list sep lst)
+  (if (pair? lst)
+      (let loop ((s (car lst))
+                 (lst (cdr lst)))
+        (if (pair? lst)
+            (loop (string-append s sep (car lst)) (cdr lst))
+            s))))
+
 (define (write-to-file-or-fail string filename)
   (with-exception-catcher
     (lambda (e) #f)
