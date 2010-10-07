@@ -8,10 +8,12 @@
 (border-width 2)
 (bar-height 16)
 (define prev-view (make-parameter ""))
-(define *tags-fifo* (string-append "/tmp/gravicappa-wm.tags"
-                                   (getenv "DISPLAY")))
+(define *tags-fifo*
+  (string-append "/tmp/gravicappa-wm.tags" (getenv "DISPLAY")))
+(define *timing-fifo*
+  (string-append "/tmp/ns." (getenv "USER") "/timing" (getenv "DISPLAY")))
 
-(define logger '("log" "/home/ramil/stat/timing"))
+(pp `(timing-fifo: ,*timing-fifo*))
 
 (define (string-current-layout)
   (if (eq? (current-layout) fullscreen)
@@ -63,13 +65,8 @@
                                    (tiler 56/100)
                                    fullscreen)))
 
-(define (tm-log . args)
-  (let* ((curtime (inexact->exact (floor (time->seconds (current-time)))))
-         (str (string-append-list " " (cons (number->string curtime) args))))
-    (thread-start!
-      (make-thread (lambda () (pipe-command logger (list str)))))))
-
-(define (tm-switch-to) (tm-log "switch_to" (current-view)))
+(define (tm-switch-to) 
+  (write-to-pipe (string-append "switch_to " (current-view)) *timing-fifo*))
 
 (define (dmenu title lines)
   (pipe-command (append (split-string #\space (getenv "DMENU"))
@@ -82,8 +79,6 @@
 ;; Updating tagbar every time it changes
 (define update-tag-hook update-tag-status)
 
-(set! shutdown-hook (lambda () (tm-log "exit")))
-
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
 (bind-key x#+mod4-mask+ "j" focus-before)
@@ -93,7 +88,7 @@
 (bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
 (bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
 (bind-key x#+mod4-mask+ "p" (lambda () (shell-command "$DMENU_RUN &")))
-(bind-key x#+mod4-mask+ "f" (lambda () (toggle-fullscreen)))
+(bind-key x#+mod4-mask+ "f" toggle-fullscreen)
 (bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
 (bind-key x#+mod4-mask+ "r" (lambda ()
                               (view-tag (prev-view))
