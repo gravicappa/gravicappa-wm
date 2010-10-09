@@ -24,4 +24,4 @@ update() {
 
 while update; do
   sleep 5
-update
+done
