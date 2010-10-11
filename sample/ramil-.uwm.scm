@@ -7,13 +7,12 @@
 (selected-border-colour #xaf0000)
 (border-width 2)
 (bar-height 16)
+(initial-view "talk")
 (define prev-view (make-parameter ""))
 (define *tags-fifo*
   (string-append "/tmp/gravicappa-wm.tags" (getenv "DISPLAY")))
 (define *timing-fifo*
   (string-append "/tmp/ns." (getenv "USER") "/timing" (getenv "DISPLAY")))
-
-(pp `(timing-fifo: ,*timing-fifo*))
 
 (define (string-current-layout)
   (if (eq? (current-layout) fullscreen)

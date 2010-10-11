@@ -1,25 +1,49 @@
 #!/usr/bin/env rc
 
-fn mail {
-  mails=`{find -L $HOME/mail/.new -type f | wc -l}
-  if (test $mails -gt 0)
-    echo mail:$mails '|'
+fn st_mail {
+  d=()
+  for (m in $HOME/mail/*/new/*)
+    if (test -f $m)
+      if (! ~ $m */sent/*)
+        d=($d $m)
+  if (test $#d -gt 0) {
+    printf 'mail:%s ' $#d
+
+    d=$HOME/mail/inbox/new/*
+    if (test -f $d(1))
+      printf 'inb:%s ' $#d
+
+    d=$HOME/mail/gmx/new/*
+    if (test -f $d(1))
+      printf 'gmx:%s ' $#d
+
+    d=$HOME/mail/work/new/*
+    if (test -f $d(1))
+      printf 'work:%s ' $#d
+  }
 }
 
-fn update {
-  acpi=`{acpi -b -t | awk '/^Battery 0:/ {
-                                           gsub(/,/, "");
-                                           bat = $3 " " $4 " " $5; 
-                                         }
-                           /^Thermal 0:/ {
-                                           temp = $4 "°C"
-                                         }
-                           END {
-                             print temp " | " bat
-                           }'}
-  vol=`{amixer get Master | awk '/Mono: Playback/ {print $4}'}
-  echo `{mail} $vol '|' $acpi '|' `{date '+%a %d %b, %H:%M'}
+fn st_acpi {
+  acpi -b -t | awk '/^Battery 0:/ {
+                                    gsub(/,/, "");
+                                    sub(/Discharging/, "-", $3);
+                                    sub(/Charging/, "+", $3);
+                                    sub(/:[0-9][0-9]$/, "", $5);
+                                    bat = $3 $4 " " $5
+                                  }
+                    /^Thermal 0:/ {temp = int($4 + 0.5) "°C"}
+                    END {printf "%s. %s. ", temp, bat}'
 }
 
-while (update)
+fn st_vol {
+  amixer get Master | awk '/Mono: Playback/ {
+                                              gsub(/[\[\]]/,"", $4);
+                                              printf "vol:%s. ", $4
+                                              exit
+                                            }'
+}
+
+fn st_date {date '+%a %d %b, %H:%M'}
+
+while (st_mail; st_vol; st_acpi; st_date)
   sleep 5
