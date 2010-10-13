@@ -26,8 +26,9 @@ fn st_mail {
 fn st_acpi {
   acpi -b -t | awk '/^Battery 0:/ {
                                     gsub(/,/, "");
-                                    sub(/Discharging/, "-", $3);
-                                    sub(/Charging/, "+", $3);
+                                    sub(/[Dd]ischarging/, "-", $3);
+                                    sub(/[Cc]harging/, "+", $3);
+                                    sub(/[^+-]*/, "", $3);
                                     sub(/:[0-9][0-9]$/, "", $5);
                                     bat = $3 $4 " " $5
                                   }
