@@ -17,7 +17,7 @@
     (call-with-managed-area
       screen
       (lambda (sx sy sw sh)
-        (let ((zoom-width (* sw ratio))
+        (let ((zoom-width (floor (* sw ratio)))
               (clients (filter client-tiled? (screen-clients screen))))
           (cond ((null? clients))
                 ((null? (cdr clients))
