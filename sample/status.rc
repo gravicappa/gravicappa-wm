@@ -1,26 +1,13 @@
 #!/usr/bin/env rc
 
 fn st_mail {
-  d=()
-  for (m in $HOME/mail/*/new/*)
-    if (test -f $m)
-      if (! ~ $m */sent/*)
-        d=($d $m)
-  if (test $#d -gt 0) {
-    printf 'mail:%s ' $#d
-
-    d=$HOME/mail/inbox/new/*
-    if (test -f $d(1))
-      printf 'inb:%s ' $#d
-
-    d=$HOME/mail/gmx/new/*
-    if (test -f $d(1))
-      printf 'gmx:%s ' $#d
-
-    d=$HOME/mail/work/new/*
-    if (test -f $d(1))
-      printf 'work:%s ' $#d
-  }
+  dirs=()
+  for (d in $HOME/mail/*/)
+    if (! ~ $d */sent/) {
+      m=$d/new/*
+      if (! ~ $m(1) $d/new/'*')
+        printf '%s:%s ' `{basename $d} $#m
+    }
 }
 
 fn st_acpi {
