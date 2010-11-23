@@ -24,9 +24,9 @@
              (str (string-append (current-view)
                                  " "
                                  (string-current-layout)
-                                 " /"
+                                 " <"
                                  (prev-view)
-                                 "/")))
+                                 ">")))
     (if (pair? tags)
         (loop (cdr tags)
               (if (or (string=? (car tags) (current-view))

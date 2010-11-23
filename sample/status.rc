@@ -25,8 +25,8 @@ fn st_acpi {
 
 fn st_vol {
   amixer get Master | awk '/Mono: Playback/ {
-                                              gsub(/[\[\]]/,"", $4);
-                                              printf "vol:%s. ", $4
+                                              gsub(/[\[\]%]/,"", $4);
+                                              printf "%s». ", int($4 / 10)
                                               exit
                                             }'
 }
