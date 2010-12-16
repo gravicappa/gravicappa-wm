@@ -26,6 +26,7 @@
   (minh client-minh set-client-minh!)
   (mina client-mina set-client-mina!))
 
+(define screen-edge-width 32)
 (define +client-input-mask+ (bitwise-ior x#+enter-window-mask+
                                          x#+focus-change-mask+
                                          x#+property-change-mask+
@@ -59,12 +60,12 @@
   (set-client-x! c (screen-x (current-screen)))
   (set-client-y! c (screen-y (current-screen))))
 
-(define (hold-rect-on-screen x y w h b s ret)
-  (let ((f (lambda (x w ax aw b)
-             (max ax
-                  (if (> (+ x w (* 2 b)) (+ ax aw))
-                      (- (+ ax aw) w)
-                      x)))))
+(define (keep-rect-on-screen x y w h b s ret)
+  (let* ((pad screen-edge-width)
+         (f (lambda (x w sx sw b)
+              (cond ((< (+ x w (* 2 b)) (+ sx pad)) (- (+ pad sx) w (* 2 b)))
+                    ((> (- (+ x pad) b) (+ sx sw)) (- (+ sx sw) b pad))
+                    (else x)))))
     (ret (f x w (screen-x s) (screen-w s) b)
          (f y h (screen-y s) (screen-h s) b))))
 
@@ -216,7 +217,7 @@
     (cond ((client-wants-fullscreen? c)
            (fullscreenize-client! c))
           (else (set-client-border! c (border-width))
-                (hold-rect-on-screen
+                (keep-rect-on-screen
                   (client-x c) (client-y c) (client-w c) (client-h c)
                   (client-border c) (current-screen)
                   (lambda (x y)

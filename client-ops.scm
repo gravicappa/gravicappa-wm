@@ -122,6 +122,6 @@
             (y (+ (client-y c) dy))
             (w (+ (client-w c) dw))
             (h (+ (client-h c) dh)))
-        (hold-rect-on-screen x y w h (client-border c) (current-screen)
+        (keep-rect-on-screen x y w h (client-border c) (current-screen)
                              (lambda (x y)
                                (resize-client! c x y w h))))))
