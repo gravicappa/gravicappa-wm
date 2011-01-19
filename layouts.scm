@@ -43,11 +43,9 @@
     screen
     (lambda (sx sy sw sh)
       (for-each (lambda (c)
-                  (if (eq? c (current-client))
-                      (resize-client! c
-                                      sx
-                                      sy
-                                      (no-border sw c)
-                                      (no-border sh c))
-                      (hide-client! c)))
+                  (resize-client! c
+                                  sx
+                                  sy
+                                  (no-border sw c)
+                                  (no-border sh c)))
                 (filter client-tiled? (screen-clients screen))))))
