@@ -1,5 +1,5 @@
 (define-record-type screen
-  (make-screen id x y w h root display view clients focus-stack)
+  (make-screen id x y w h root display view clients stack)
   screen?
   (id screen-id)
   (x screen-x set-screen-x!)
@@ -9,7 +9,7 @@
   (root screen-root)
   (display screen-display)
   (clients screen-clients set-screen-clients!)
-  (focus-stack screen-focus-stack set-screen-focus-stack!)
+  (stack screen-stack set-screen-stack!)
   (view screen-view set-screen-view!))
 
 (define *screens* (vector))

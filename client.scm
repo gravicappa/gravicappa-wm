@@ -240,8 +240,8 @@
                                 (client-fullscreen? c)))
     (x-raise-window dpy w)
     (add-client! c (screen-clients s))
-    (if (not (memq c (screen-focus-stack s)))
-        (add-client! c (screen-focus-stack s)))
+    (if (not (memq c (screen-stack s)))
+        (add-client! c (screen-stack s)))
     (x-move-resize-window dpy
                           w
                           (+ (client-x c) (* 2 (screen-w s)))
@@ -262,7 +262,7 @@
       (lambda ()
         (x-configure-window dpy w border-width: (client-old-border c))
         (remove-client! c (screen-clients s))
-        (remove-client! c (screen-focus-stack s))
+        (remove-client! c (screen-stack s))
         (x-ungrab-button dpy x#+any-button+ x#+any-modifier+ w)
         (set-x-window-state! dpy w (xatom "WM_STATE") x#+withdrawn-state+))
       (lambda ()

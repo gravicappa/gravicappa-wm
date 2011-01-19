@@ -34,7 +34,7 @@
 (define (focus-client dpy client)
   (let* ((s (current-screen))
          (c (if (not (and client (client-visible? client)))
-                (find-if client-visible? (screen-focus-stack s))
+                (find-if client-visible? (screen-stack s))
                 client)))
     (if (and (current-client) (not (eq? (current-client) c)))
         (begin
@@ -45,7 +45,7 @@
           (x-set-window-border dpy
                                (client-window (current-client))
                                (get-colour dpy s (border-colour)))))
-    (cond (c (move-client-to-top! c (screen-focus-stack s))
+    (cond (c (move-client-to-top! c (screen-stack s))
              (grab-buttons! c)
              (x-set-window-border dpy
                                   (client-window c)
@@ -67,7 +67,7 @@
       (begin
         (if (client-floating? (current-client))
             (x-raise-window dpy (client-window (current-client))))
-        (let loop ((clients (filter client-tiled? (screen-clients screen)))
+        (let loop ((clients (filter client-tiled? (screen-stack screen)))
                    (sibling x#+none+))
           (if (pair? clients)
               (begin
