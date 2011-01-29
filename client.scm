@@ -103,7 +103,7 @@
     (x-send-event (current-display) win #f x#+structure-notify-mask+ ev)))
 
 (define (hint-set? flag hints)
-  (bitwise-and (x-size-hints-flags hints) flag))
+  (not (zero? (bitwise-and (x-size-hints-flags hints) flag))))
 
 (define (set-client-base-size! c hints)
   (cond ((hint-set? x#+p-base-size+ hints)

@@ -163,7 +163,7 @@ end-of-c-declare
   (c-lambda (XSizeHints* int) void "___arg1->max_aspect.x = ___arg2;"))
 
 (define set-x-size-hints-max-aspect-y!
-  (c-lambda (XSizeHints* int) void "___arg1->min_aspect.y = ___arg2;"))
+  (c-lambda (XSizeHints* int) void "___arg1->max_aspect.y = ___arg2;"))
 
 (define (x-default-error-handler display ev)
   (let ((request-code (char->integer (x-error-event-request-code ev)))
