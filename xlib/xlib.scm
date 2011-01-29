@@ -186,8 +186,7 @@ end-of-c-declare
 (define x#%set-error-handler!
   (c-lambda ((function (Display* XErrorEvent*) int))
             (pointer "void")
-            "___result_voidstar = XSetErrorHandler(___arg1, 
-                                                  (XErrorEvent *)___arg2);"))
+            "___result_voidstar = XSetErrorHandler((XErrorHandler)___arg1);"))
 
 (define (set-x-error-handler! fn)
   (set! error-handler fn)

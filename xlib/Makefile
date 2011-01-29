@@ -1,3 +1,4 @@
+GSC = gsc
 -include config.mk
 
 LDFLAGS += -lX11
