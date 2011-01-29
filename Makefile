@@ -8,6 +8,7 @@ install = install
 LDFLAGS += -lX11
 GSCFLAGS = -prelude '(declare (extended-bindings))' \
            -cc-options "-pipe $(CFLAGS)" -ld-options "$(LDFLAGS)"
+GSC = gsc
 CC = gcc
 
 -include config.mk
