@@ -13,110 +13,6 @@
   (block)
   (not safe))
 
-(define-macro (x#%eval-at-macroexpand expr)
-  (eval expr)
-  expr)
-
-(x#%eval-at-macroexpand
-  (define (x#%string-replace new old str)
-    (list->string (map (lambda (c)
-                         (if (char=? c old)
-                             new
-                             c))
-                       (string->list str)))))
-
-(define (x#%provided-mask v shift)
-  (if (eq? v '())
-      0
-      (arithmetic-shift 1 shift)))
-
-(define (x#%provided-value v default)
-  (if (eq? v '())
-      default
-      v))
-
-(x#%eval-at-macroexpand
-  (define (x#%make-provided-mask args)
-    (let loop ((args args)
-               (idx 0)
-               (acc '()))
-      (if (pair? args)
-          (let ((arg (car args)))
-            (loop (cdr args)
-                  (+ idx 1)
-                  (cons `(x#%provided-mask ,(car arg) ,idx) acc)))
-          acc))))
-
-(x#%eval-at-macroexpand
-  (define (x#%get-default-value arg)
-    (if (null? (cddr arg))
-        (case (cadr arg)
-          ((int unsigned-long unsigned-int Bool long) 0)
-          ((Window Pixmap Cursor Colormap) 'x#+none+)
-          (else (error (string-append "Cannot determine default type for "
-                                      (object->string (cadr arg))))))
-        (caddr arg))))
-
-(define-macro (x#%define/x-object name type)
-  (let* ((sym (string->symbol name))
-         (ptr (string->symbol (string-append name "*")))
-         (ptr/free (string->symbol (string-append name "*/" type)))
-         (releaser (string-append type "_" name))
-         (c-releaser (x#%string-replace #\_ #\- releaser)))
-    `(begin
-       (c-declare
-         ,(string-append
-            "static ___SCMOBJ\n" c-releaser "(void *ptr)\n"
-            "{\n"
-            name " *p = ptr;\n"
-            "#if XLIB_SCM_DBG_ALLOC_REPORT == 1\n"
-            "fprintf(stderr,
-                     \";;; (release \\\"" name "\\\" \\\"%p\\\")\\n\", p);\n"
-            "#endif\n"
-            (cond
-              ((string=? type "release-rc")
-               "___EXT(___release_rc)(p);\n")
-              ((string=? type "XFree")
-               "XFree(p);\n")
-              ((string=? type "free")
-               "free(p);\n")
-              (else (error (string-append "Unknown releaser: " type))))
-            "return ___FIX(___NO_ERR);\n"
-            "}\n"))
-       (c-define-type ,sym ,name)
-       (c-define-type ,ptr (pointer ,sym (,ptr)))
-       (c-define-type ,ptr/free (pointer ,sym (,ptr) ,c-releaser)))))
-
-(define-macro (x#%define/x-const name type c-name)
-  `(define ,name
-     ((c-lambda () ,type ,(string-append "___result = " c-name ";")))))
-
-(define-macro (x#%define/x-setter name args key-args type c-body)
-  (let ((types (append (map cadr args) '(unsigned-long) (map cadr key-args)))
-        (lambda-key-args (map (lambda (a) `(,(car a) '())) key-args))
-        (mask-var (gensym)))
-    `(define (,name ,@(map car args) #!key ,@lambda-key-args)
-      (let ((,mask-var (bitwise-ior ,@(x#%make-provided-mask key-args))))
-        ((c-lambda ,types ,type ,c-body)
-         ,@(map car args)
-         ,mask-var
-         ,@(map (lambda (a)
-                  `(x#%provided-value ,(car a) ,(x#%get-default-value a)))
-                key-args))))))
-
-(define-macro (x#%define/x-pstruct-getter name args type code)
-  (let ((ret-type (string->symbol (string-append type "*/release-rc"))))
-    `(define ,name
-       (c-lambda
-         ,args
-         ,ret-type
-         ,(string-append
-            type " data, *pdata;\n"
-            code "\n"
-            "XLIB_SCM_ALLOC_OBJ(pdata, " type ");
-            *pdata = data;
-            ___result_voidstar = pdata;")))))
-
 ;;;============================================================================
 
 (c-declare "
@@ -147,7 +43,7 @@
 (c-define-type XID unsigned-long)
 (c-define-type Atom unsigned-long)
 
-(c-define-type Bool int)
+(c-define-type Bool bool)
 (c-define-type Status int)
 
 (c-define-type Window XID)
@@ -183,23 +79,57 @@ XFree_GC(void *ptr)
 end-of-c-declare
 )
 
+(include "ffi.scm")
+
+(extern-object-releaser-set! "XFree" "XFree(p);\n")
+
 (c-define-type Display* (pointer "Display"))
 (c-define-type GC (pointer (struct "_XGC") (GC)))
 (c-define-type GC/XFree (pointer (struct "_XGC") (GC) "XFree_GC"))
 
-(x#%define/x-object "XGCValues" "release-rc")
-(x#%define/x-object "XEvent" "release-rc")
-(x#%define/x-object "XErrorEvent" "release-rc")
-(x#%define/x-object "XColor" "release-rc")
-(x#%define/x-object "Visual" "XFree")
-(x#%define/x-object "Screen" "XFree")
-(x#%define/x-object "XFontStruct" "XFree")
-(x#%define/x-object "XWindowAttributes" "release-rc")
-(x#%define/x-object "XSizeHints" "release-rc")
+(ffi-define-type "XGCValues" "release-rc")
+(ffi-define-type "XColor" "release-rc")
+(ffi-define-type "Visual" "XFree")
+(ffi-define-type "Screen" "XFree")
+(ffi-define-type "XFontStruct" "XFree")
+(ffi-define-type "XWindowAttributes" "release-rc")
+(ffi-define-type "XSizeHints" "release-rc")
+(ffi-define-type "XEvent" "release-rc")
 
-(include "xlib-constants%.scm")
-(include "xlib-events%.scm")
-(include "xlib-accessors%.scm")
+(c-define-type XAnyEvent* XEvent*)
+(c-define-type XKeyEvent* XEvent*)
+(c-define-type XButtonEvent* XEvent*)
+(c-define-type XMotionEvent* XEvent*)
+(c-define-type XCrossingEvent* XEvent*)
+(c-define-type XFocusChangeEvent* XEvent*)
+(c-define-type XExposeEvent* XEvent*)
+(c-define-type XGraphicsExposeEvent* XEvent*)
+(c-define-type XNoExposeEvent* XEvent*)
+(c-define-type XVisibilityEvent* XEvent*)
+(c-define-type XCreateWindowEvent* XEvent*)
+(c-define-type XDestroyWindowEvent* XEvent*)
+(c-define-type XUnmapEvent* XEvent*)
+(c-define-type XMapEvent* XEvent*)
+(c-define-type XMapRequestEvent* XEvent*)
+(c-define-type XReparentEvent* XEvent*)
+(c-define-type XConfigureEvent* XEvent*)
+(c-define-type XGravityEvent* XEvent*)
+(c-define-type XResizeRequestEvent* XEvent*)
+(c-define-type XConfigureRequestEvent* XEvent*)
+(c-define-type XCirculateEvent* XEvent*)
+(c-define-type XCirculateRequestEvent* XEvent*)
+(c-define-type XPropertyEvent* XEvent*)
+(c-define-type XSelectionClearEvent* XEvent*)
+(c-define-type XSelectionRequestEvent* XEvent*)
+(c-define-type XSelectionEvent* XEvent*)
+(c-define-type XColormapEvent* XEvent*)
+(c-define-type XClientMessageEvent* XEvent*)
+(c-define-type XMappingEvent* XEvent*)
+(c-define-type XErrorEvent* XEvent*)
+(c-define-type XKeymapEvent* XEvent*)
+
+(include "xlib-structs.scm")
+(include "xlib-constants.scm")
 
 (define x-client-message-event-data-l
   (c-lambda (XEvent* int)
@@ -210,6 +140,30 @@ end-of-c-declare
   (c-lambda (XEvent* int long)
             void
             "___arg1->xclient.data.l[___arg2] = ___arg3;"))
+
+(define x-size-hints-min-aspect-x
+  (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.x;"))
+
+(define x-size-hints-min-aspect-y
+  (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.y;"))
+
+(define x-size-hints-max-aspect-x
+  (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.x;"))
+
+(define x-size-hints-max-aspect-y
+  (c-lambda (XSizeHints*) int "___result = ___arg1->max_aspect.y;"))
+
+(define set-x-size-hints-min-aspect-x!
+  (c-lambda (XSizeHints* int) void "___arg1->min_aspect.x = ___arg2;"))
+
+(define set-x-size-hints-min-aspect-y!
+  (c-lambda (XSizeHints* int) void "___arg1->min_aspect.y = ___arg2;"))
+
+(define set-x-size-hints-max-aspect-x!
+  (c-lambda (XSizeHints* int) void "___arg1->max_aspect.x = ___arg2;"))
+
+(define set-x-size-hints-max-aspect-y!
+  (c-lambda (XSizeHints* int) void "___arg1->min_aspect.y = ___arg2;"))
 
 (define (x-default-error-handler display ev)
   (let ((request-code (char->integer (x-error-event-request-code ev)))
@@ -222,7 +176,7 @@ end-of-c-declare
 (define x-error-handler x-default-error-handler)
 
 (c-define (x-scheme-error-handler display ev)
-          (Display* XEvent*)
+          (Display* XErrorEvent*)
           int
           "scheme_x_error_handler"
           ""
@@ -230,9 +184,10 @@ end-of-c-declare
           0)
 
 (define x#%set-error-handler!
-  (c-lambda ((function (Display* XEvent*) int))
+  (c-lambda ((function (Display* XErrorEvent*) int))
             (pointer "void")
-            "XSetErrorHandler"))
+            "___result_voidstar = XSetErrorHandler(___arg1, 
+                                                  (XErrorEvent *)___arg2);"))
 
 (define (set-x-error-handler! fn)
   (set! error-handler fn)
@@ -484,7 +439,9 @@ end-of-c-declare
   (c-lambda (XFontStruct*) int "___result = ___arg1->descent;"))
 
 (define x-refresh-keyboard-mapping
-  (c-lambda (XEvent*) int "XRefreshKeyboardMapping"))
+  (c-lambda (XMappingEvent*)
+            int
+            "___result = XRefreshKeyboardMapping(&___arg1->xmapping);"))
 
 (define x-pending
   (c-lambda (Display*) int "XPending"))
@@ -651,13 +608,13 @@ ___result = ks;
 end-of-c-lambda
 ))
 
-(x#%define/x-pstruct-getter
+(define-x-pstruct-getter
   x-get-window-attributes
   (Display* Window)
   "XWindowAttributes"
   "XGetWindowAttributes(___arg1, ___arg2, &data);")
 
-(x#%define/x-pstruct-getter
+(define-x-pstruct-getter
   x-get-wm-normal-hints
   (Display* Window)
   "XSizeHints"
@@ -831,7 +788,7 @@ end-of-lambda
 (define x-raise-window
   (c-lambda (Display* Window) int "XRaiseWindow"))
 
-(x#%define/x-setter
+(define-x-setter
   x-configure-window
   ((display Display*)
    (window Window))
@@ -854,7 +811,7 @@ end-of-lambda
    wc.stack_mode = ___arg10;
    ___result = XConfigureWindow(___arg1, ___arg2, ___arg3, &wc);")
 
-(x#%define/x-setter
+(define-x-setter
   x-change-window-attributes
   ((display Display*)
    (window Window))

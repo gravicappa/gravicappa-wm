@@ -1,29 +1,29 @@
 #!/bin/sh
 
-. ./functions
-
 files='/usr/include/X11/Xutil.h 
        /usr/include/X11/Xatom.h 
 			 /usr/include/X11/X.h 
 			 /usr/include/X11/Xproto.h'
-types=`cat <<!
-Window 
-Drawable 
-Font 
-Pixmap 
-Cursor 
-Colormap 
-GContext 
-Atom 
-VisualID 
-Time 
-KeyCode 
-KeySym
-!
-`
+types='Window 
+       Drawable 
+       Font 
+       Pixmap 
+       Cursor 
+       Colormap 
+       GContext 
+       Atom 
+       VisualID 
+       Time 
+       KeyCode 
+       KeySym'
+
+lisp_name() {
+	echo $1 | sed 's/[A-Z][a-z]/-&/g;s/_/-/g' \
+	| sed 's/^-//' | sed 's/-\+-/-/g' | tr A-Z a-z
+}
 
 types_re=$(for f in $types; do printf "\<$f\>|"; done \
-                  | sed 's/|$//')
+           | sed 's/|$//')
 
 for f in $files; do
 	grep -E "#define[ 	]*[A-Z][A-Z_a-z0-9]+[^(][ 	]" < "$f" \
@@ -34,6 +34,6 @@ done \
 | while read def; do
   name=+`lisp_name $def`+
 	cat << !
-(%define/x-const $name long "$def")
+(define-c-const $name long "$def")
 !
 done
