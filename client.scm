@@ -211,7 +211,6 @@
                 (set-client-tags! c (client-tags parent))))))))
 
 (define (manage-client c)
-  (pp `(manage-client ,c))
   (let ((s (current-screen))
         (dpy (current-display))
         (w (client-window c)))
