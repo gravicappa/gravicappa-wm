@@ -6,7 +6,7 @@ Enter the following commands to build and install executable gravicappa-wm:
 
 If your gsc executable has another name (e.g. to avoid name clash with
 ghostscript) specify gsc parameter:
-	make gsc=gambit-gsc
+	make GSC=gambit-gsc
 
 Running gravicappa-wm
 ---------------------
