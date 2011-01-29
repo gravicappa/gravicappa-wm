@@ -51,7 +51,6 @@
         (if (and code (not (zero? (char->integer code))))
             (for-each
               (lambda (mod)
-                (display-log 5 ";; binding " key " keycode: " (char->integer code))
                 (x-grab-key (current-display)
                             (char->integer code)
                             (bitwise-ior (vector-ref key 0) mod)

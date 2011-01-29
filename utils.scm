@@ -11,8 +11,7 @@
         (newline port)
         (force-output port))))
 
-(define (add-xevent-handler! ev proc)
-  (table-set! x11-event-handlers ev proc))
+(define (add-xevent-handler! ev proc) (table-set! x11-event-handlers ev proc))
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
@@ -26,8 +25,7 @@
           #f))))
 
 (eval-at-macroexpand
-  (define (complement fn)
-    (lambda args (not (apply fn args)))))
+  (define (complement fn) (lambda args (not (apply fn args)))))
 
 (eval-at-macroexpand
   (define (filter fn <list>)

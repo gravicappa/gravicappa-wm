@@ -99,7 +99,7 @@
     (set-x-configure-event-height! ev (client-h c))
     (set-x-configure-event-border-width! ev (client-border c))
     (set-x-configure-event-above! ev x#+none+)
-    (set-x-configure-event-override-redirect?! ev #f)
+    (set-x-configure-event-override-redirect! ev #f)
     (x-send-event (current-display) win #f x#+structure-notify-mask+ ev)))
 
 (define (hint-set? flag hints)
@@ -211,6 +211,7 @@
                 (set-client-tags! c (client-tags parent))))))))
 
 (define (manage-client c)
+  (pp `(manage-client ,c))
   (let ((s (current-screen))
         (dpy (current-display))
         (w (client-window c)))

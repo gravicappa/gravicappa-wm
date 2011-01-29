@@ -22,8 +22,7 @@
 
 (define current-client (lambda () #f))
 (define current-display (lambda () #f))
-
-(define *atoms* (make-table))
+(define atoms (make-table))
 
 (define (wm-error-handler dpy ev)
   (let ((error-code (char->integer (x-error-event-error-code ev)))
@@ -44,10 +43,9 @@
         (x-default-error-handler dpy ev))))
 
 (define (atom-set! dpy name)
-  (table-set! *atoms* name (x-intern-atom dpy name 0)))
+  (table-set! atoms name (x-intern-atom dpy name #f)))
 
-(define (xatom name)
-  (table-ref *atoms* name #f))
+(define (xatom name) (table-ref atoms name))
 
 (define (init-atoms!)
   (for-each (lambda (a) (atom-set! (current-display) a))
@@ -57,8 +55,7 @@
               "_NET_WM_NAME"
               "_NET_SUPPORTED")))
 
-(define (init-error-handler!)
-  (set-x-error-handler! wm-error-handler))
+(define (init-error-handler!) (set-x-error-handler! wm-error-handler))
 
 (define (handle-x11-event ev)
   (let ((proc (table-ref x11-event-handlers (x-any-event-type ev) #f)))
@@ -66,13 +63,6 @@
         (proc ev)
         ;(display-log 2 ";; unhandled event " (x-any-event-type ev))
         )))
-
-(define (run-deferred)
-  (let ((thunk (thread-receive 0 #f)))
-    (if (procedure? thunk)
-        (begin
-          (thunk)
-          (run-deferred)))))
 
 (define (process-x11-events dpy)
   (x-call-with-x11-events
@@ -83,7 +73,6 @@
             (begin
               (handle-x11-event (x-next-event dpy))
               (loop))))
-      (run-deferred)
       (##gc)
       #t)))
 
@@ -95,14 +84,6 @@
   (if (file-exists? *user-config-file*)
       (load *user-config-file*)))
 
-(define (init!)
-  (init-atoms!)
-  (init-error-handler!)
-  (init-all-screens!)
-  (load-user-config!)
-  (setup-bindings!)
-  (pickup-windows!))
-
 (define (main . args)
   (dynamic-wind
     (lambda ()
@@ -110,7 +91,12 @@
                               (lambda () dpy)))
       (if (not (current-display))
           (error "Unable to open display"))
-      (init!))
+      (init-atoms!)
+      (init-error-handler!)
+      (init-all-screens!)
+      (load-user-config!)
+      (setup-bindings!)
+      (pickup-windows!))
     (lambda ()
       (x-sync (current-display) #f)
       (main-loop))
