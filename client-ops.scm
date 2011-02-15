@@ -1,12 +1,12 @@
 (define (focus-previous)
   (let ((c (filter client-visible? (screen-stack (current-screen)))))
-    (if (and (pair? (cdr c)) (client? (cadr c)))
+    (if (and (pair? c) (pair? (cdr c)) (client? (cadr c)))
         (focus-client (current-display) (cadr c)))))
 
 (define (focus-left)
   (let* ((s (current-screen))
          (c (filter client-visible? (cdr (screen-clients s)))))
-    (if (and (positive? (length c)) (client? (car c)))
+    (if (and (pair? c) (client? (car c)))
         (focus-client (current-display) (car c)))))
 
 (define (focus-right)
