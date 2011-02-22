@@ -77,9 +77,7 @@
                                     stack-mode: x#+below+)
                 (loop (cdr clients) (client-window (car clients))))))
         (x-sync dpy #f)
-        (let loop ()
-          (if (x-check-mask-event dpy x#+enter-window-mask+)
-              (loop))))))
+        (do () ((not (x-check-mask-event dpy x#+enter-window-mask+)))))))
 
 (define (call-with-managed-area screen ret)
   (ret (screen-x screen)
