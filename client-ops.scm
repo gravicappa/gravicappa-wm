@@ -123,5 +123,6 @@
             (w (+ (client-w c) dw))
             (h (+ (client-h c) dh)))
         (keep-rect-on-screen x y w h (client-border c) (current-screen)
-                             (lambda (x y)
-                               (resize-client! c x y w h))))))
+                             (lambda (x y) (resize-client! c x y w h)))
+        (do () ((not (x-check-mask-event (current-display)
+                                         x#+enter-window-mask+)))))))
