@@ -1,37 +1,36 @@
 #!/usr/bin/env rc
 
 fn st_mail {
-  dirs=()
   for (d in $HOME/mail/*/)
     if (! ~ $d */sent/) {
       m=$d/new/*
       if (! ~ $m(1) $d/new/'*')
-        printf '%s:%s ' `{basename $d} $#m
+        printf '%s:%d ' `{basename $d} $#m
     }
 }
 
 fn st_acpi {
   acpi -b -t | awk '/^Battery 0:/ {
-                                    gsub(/,/, "");
-                                    sub(/[Dd]ischarging/, "-", $3);
-                                    sub(/[Cc]harging/, "+", $3);
-                                    sub(/[^+-]*/, "", $3);
-                                    sub(/:[0-9][0-9]$/, "", $5);
-                                    bat = $3 $4 " " $5
-                                  }
+                      gsub(/,/, "");
+                      sub(/[Dd]ischarging/, "-", $3);
+                      sub(/[Cc]harging/, "+", $3);
+                      sub(/[^+-]*/, "", $3);
+                      sub(/:[0-9][0-9]$/, "", $5);
+                      bat = $3 $4 " " $5
+                    }
                     /^Thermal 0:/ {temp = int($4 + 0.5) "°C"}
                     END {printf "%s. %s. ", temp, bat}'
 }
 
 fn st_vol {
   amixer get Master | awk '/Mono: Playback/ {
-                                              gsub(/[\[\]%]/,"", $4);
-                                              printf "%s». ", int($4 / 10)
-                                              exit
-                                            }'
+                             gsub(/[\[\]%]/,"", $4);
+                             printf "»%s. ", int($4 / 10)
+                             exit
+                           }'
 }
 
 fn st_date {date '+%a %d %b, %H:%M'}
 
 while (st_mail; st_vol; st_acpi; st_date)
-  sleep 5
+  sleep 10
