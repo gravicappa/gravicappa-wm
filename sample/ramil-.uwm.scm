@@ -68,9 +68,11 @@
   (write-to-pipe (string-append "switch_to " (current-view)) *timing-fifo*))
 
 (define (dmenu title lines)
-  (pipe-command (append (split-string #\space (getenv "DMENU"))
-                                      (list "-p" title))
-                        lines))
+  (string-trim-right
+    (pipe-command (append (split-string #\space (getenv "DMENU"))
+                                        (list "-p" title))
+                          lines)
+                  #\newline))
 
 ;; After start we see updated tagbar
 (update-tag-status)
