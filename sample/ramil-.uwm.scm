@@ -72,7 +72,7 @@
     (pipe-command (append (split-string #\space (getenv "DMENU"))
                                         (list "-p" title))
                           lines)
-                  #\newline))
+    #\newline))
 
 ;; After start we see updated tagbar
 (update-tag-status)
