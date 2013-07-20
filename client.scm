@@ -41,15 +41,18 @@
                '()
                (x-window-attributes-border-width wa)))
 
-(define (clients-list s . new)
+(define (screen-clients-list s . new)
   (if (pair? new)
       (set-screen-clients! s (car new))
       (screen-clients s)))
 
-(define (clients-stack s . new)
+(define (screen-clients-stack s . new)
   (if (pair? new)
       (set-screen-stack! s (car new))
       (screen-stack s)))
+
+(define clients-list screen-clients-list)
+(define clients-stack screen-clients-stack)
 
 (define (add-client! c where s)
   (where s (cons c (remove c (where s)))))
