@@ -41,18 +41,18 @@
                '()
                (x-window-attributes-border-width wa)))
 
-(define (screen-clients-list s . new)
+(define sort-clients-list (lambda (x) x))
+(define sort-clients-focus-stack (lambda (x) x))
+
+(define (clients-list s . new)
   (if (pair? new)
       (set-screen-clients! s (car new))
-      (screen-clients s)))
+      (sort-clients-list (screen-clients s))))
 
-(define (screen-clients-stack s . new)
+(define (clients-stack s . new)
   (if (pair? new)
       (set-screen-stack! s (car new))
-      (screen-stack s)))
-
-(define clients-list screen-clients-list)
-(define clients-stack screen-clients-stack)
+      (sort-clients-focus-stack (screen-stack s))))
 
 (define (add-client! c where s)
   (where s (cons c (remove c (where s)))))
