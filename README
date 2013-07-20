@@ -13,5 +13,5 @@ Running gravicappa-wm
 See included sample/dotxinitrc which shows possible way of running
 window manager. Those commands can be added into your .xinitrc.
 
-gravicappa-wm reads ~/.uwm.scm configuration file which is a scheme
-source. Sample can be taken from sample/dotuwm.scm.
+gravicappa-wm reads ~/.gravicappa-wm.scm configuration file which is a scheme
+source. Sample can be taken from sample/gravicappa-wm.scm.

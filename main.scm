@@ -1,11 +1,11 @@
-(define *user-config-file* "~/.uwm.scm")
+(define *user-config-file* "~/.gravicappa-wm.scm")
 
 ;;; defaults
 (define border-colour (make-parameter #xf0f0a0))
 (define selected-border-colour (make-parameter #x00af00))
 (define border-width (make-parameter 2))
 (define bar-height (make-parameter 16))
-(define initial-view (make-parameter "gravicappa-wm!"))
+(define initial-view (make-parameter "!"))
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
@@ -19,6 +19,7 @@
 (define shutdown-hook (lambda () #f))
 (define update-tag-hook (lambda () #f))
 (define client-create-hook (lambda (client classname) #f))
+(define focus-hook (lambda () #f))
 
 (define current-client (lambda () #f))
 (define current-display (lambda () #f))
@@ -56,28 +57,22 @@
               "_NET_SUPPORTED")))
 
 (define (init-error-handler!) (set-x-error-handler! wm-error-handler))
+(define (nop-handler _) #t)
 
 (define (handle-x11-event ev)
-  (let ((proc (table-ref x11-event-handlers (x-any-event-type ev) #f)))
-    (if proc
-        (proc ev)
-        ;(display-log 2 ";; unhandled event " (x-any-event-type ev))
-        )))
-
-(define (process-x11-events dpy)
-  (x-call-with-x11-events
-    dpy
-    (lambda ()
-      (let loop ()
-        (if (positive? (x-pending dpy))
-            (begin
-              (handle-x11-event (x-next-event dpy))
-              (loop))))
-      (##gc)
-      #t)))
+  ((table-ref x11-event-handlers (x-any-event-type ev) nop-handler) ev))
 
 (define (main-loop)
-  (process-x11-events (current-display))
+  (let ((dpy (current-display)))
+    (x-call-with-x11-events
+     dpy
+     (lambda ()
+       (let loop ()
+         (cond ((positive? (x-pending dpy))
+                (handle-x11-event (x-next-event dpy))
+                (loop))))
+       (##gc)
+       #t)))
   (main-loop))
 
 (define (load-user-config!)

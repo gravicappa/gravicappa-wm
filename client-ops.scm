@@ -1,19 +1,19 @@
 (define (focus-previous)
-  (let ((c (filter client-visible? (screen-stack (current-screen)))))
+  (let ((c (filter client-visible? (clients-stack (current-screen)))))
     (if (and (pair? c) (pair? (cdr c)) (client? (cadr c)))
         (focus-client (current-display) (cadr c)))))
 
 (define (focus-left)
   (let* ((s (current-screen))
-         (c (filter client-visible? (cdr (screen-clients s)))))
+         (c (filter client-visible? (clients-list s))))
     (if (and (pair? c) (client? (car c)))
         (focus-client (current-display) (car c)))))
 
 (define (focus-right)
   (if (current-client)
       (let* ((s (current-screen))
-             (c (filter client-visible? (cdr (screen-clients s))))
-             (f (filter client-visible? (cdr (screen-stack s)))))
+             (c (filter client-visible? (clients-list s)))
+             (f (filter client-visible? (clients-stack s))))
         (if (and (pair? c) (pair? (cdr c)) (pair? f) (pair? (cdr f))
                  (eq? (current-client) (car c)) (client? (cadr f)))
             (focus-client (current-display) (cadr f))))))
@@ -40,7 +40,7 @@
 
 (define (focus-rel select c)
   (if c
-      (let* ((clients (screen-clients (current-screen)))
+      (let* ((clients (clients-list (current-screen)))
              (next (select
                      c
                      (filter client-visible? clients))))
@@ -56,13 +56,13 @@
 (define (zoom-client client)
   (if (client? client)
       (let* ((s (current-screen))
-             (clients (filter client-tiled? (screen-clients s))))
+             (clients (filter client-tiled? (clients-list s))))
         (if (and (pair? clients)
                  (eq? client (car clients))
                  (pair? (cdr clients))
                  (cadr clients))
-            (move-client-to-top! (cadr clients) (screen-clients s))
-            (move-client-to-top! client (screen-clients s)))
+            (move-client-to-top! (cadr clients) clients-list s)
+            (move-client-to-top! client clients-list s))
         (arrange-screen (current-display) s))))
 
 (define (collect-all-tags)
@@ -74,12 +74,12 @@
           (for-each
             (lambda (t) (table-set! tags-table t #t))
             (client-tags c)))
-        (cdr (screen-clients (vector-ref *screens* i)))))
+        (clients-list (vector-ref *screens* i))))
     (map car (table->list tags-table))))
 
 (define (view-clients tag proc)
   (set-screen-view! (current-screen) tag)
-  (set! current-layout (lambda () proc))
+  (set! current-layout proc)
   (update-tag-hook)
   (let ((s (current-screen)))
     (arrange-screen (current-display) s)))
@@ -91,7 +91,7 @@
             (begin
               (set-client-tags! c (cons tag tags))
               (update-tag-hook)
-              (arrange-screen (current-display) (current-screen)))))))
+              (update-layout))))))
 
 (define (untag-client c tag)
   (if (and c (string? tag))
@@ -100,21 +100,7 @@
             (begin
               (set-client-tags! c new)
               (update-tag-hook)
-              (arrange-screen (current-display) (current-screen)))))))
-
-(define (collect-tagged-clients tag)
-  (let loop ((screens *screens*)
-             (clients '()))
-    (if (pair? screens)
-        (loop (cdr screens)
-              (append (filter (lambda (c) (client-tagged? c tag))
-                              (cdr (screen-clients (car screens))))
-                      clients))
-        clients)))
-
-(define (untag-all-clients tag)
-  (let ((clients (collect-tagged-clients tag)))
-    (for-each (lambda (c) (untag-client c tag)) clients)))
+              (update-layout))))))
 
 (define (resize-client-rel! c dx dy dw dh)
   (if (and (client? c) (client-floating? c))
@@ -126,3 +112,10 @@
                              (lambda (x y) (resize-client! c x y w h)))
         (do () ((not (x-check-mask-event (current-display)
                                          x#+enter-window-mask+)))))))
+
+(define (client-property c)
+  (if (client? c)
+      (x-get-text-property-list (current-display)
+                                (current-screen)
+                                (client-window c))
+      '()))

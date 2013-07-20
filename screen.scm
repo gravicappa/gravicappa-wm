@@ -18,7 +18,7 @@
 (define (current-screen)
   (vector-ref *screens* *current-screen-index*))
 
-(define (current-view) (screen-view (current-screen)))
+(define (current-tag) (screen-view (current-screen)))
 
 (define +root-event-mask+ (bitwise-ior x#+substructure-redirect-mask+
                                        x#+substructure-notify-mask+
@@ -37,8 +37,8 @@
                               root
                               dpy
                               (initial-view)
-                              (list #f)
-                              (list #f))))
+                              '()
+                              '())))
     (x-change-property-atoms dpy
                              root
                              (xatom "_NET_SUPPORTED")
@@ -67,8 +67,7 @@
   (find-in-vector (lambda (s) (eq? (screen-root s) parent)) *screens*))
 
 (define (find-client-on-screen window screen)
-  (find-if (lambda (c) (eq? (client-window c) window))
-           (cdr (screen-clients screen))))
+  (find-if (lambda (c) (eq? (client-window c) window)) (clients-list screen)))
 
 (define (find-client window)
   (let loop ((i 0))

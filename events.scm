@@ -15,8 +15,6 @@
   (if (eq? request x#+mapping-keyboard+)
       (setup-window-bindings! (screen-root (current-screen)) bindings)))
 
-(define (flag-set? flags mask) (= (bitwise-and flags mask) mask))
-
 (define (handle-unmanaged-window display window x y width height border-width
                                  above value-mask detail)
   (let ((if-set (lambda (flag value)
@@ -109,13 +107,12 @@
 (define-x-event-handler (configure-notify display event window x y width
                                           height)
   (let ((s (find-screen window)))
-    (if (and s (not (and (eq? width (screen-w s))
-                         (eq? height (screen-h s)))))
-        (begin
-          (set-screen-w! s width)
-          (set-screen-h! s height)
-          (arrange-screen display s)
-          (x-sync display #f)))))
+    (cond ((and s (not (and (eq? width (screen-w s))
+                            (eq? height (screen-h s)))))
+           (set-screen-w! s width)
+           (set-screen-h! s height)
+           (arrange-screen display s)
+           (x-sync display #f)))))
 
 (define-x-event-handler (enter-notify display window mode detail)
   (if (or (and (eq? mode x#+notify-normal+)

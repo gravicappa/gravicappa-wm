@@ -15,7 +15,7 @@
   (let* ((sec (inexact->exact (floor (time->seconds (current-time)))))
          (s (string-append (number->string sec)
                            " switch_to "
-                           (current-view))))
+                           (current-tag))))
     (pipe-command logger (list s))))
 
 (define (dmenu title lines)
@@ -52,7 +52,7 @@
 (bind-key x#+mod4-mask+ "r" (lambda () (view-tag (prev-view))))
 
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
-                                                     (current-view))))
+                                                     (current-tag))))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
                               (view-tag (dmenu "View:" (collect-all-tags)))

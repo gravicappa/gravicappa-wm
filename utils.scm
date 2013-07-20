@@ -112,3 +112,5 @@
           (last (cdr lst))
           (car lst))
       #f))
+
+(define (flag-set? flags mask) (= (bitwise-and flags mask) mask))

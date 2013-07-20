@@ -15,13 +15,13 @@
   (string-append "/tmp/ns." (getenv "USER") "/timing" (getenv "DISPLAY")))
 
 (define (string-current-layout)
-  (if (eq? (current-layout) fullscreen)
+  (if (eq? current-layout fullscreen)
       "[ ]"
       "[]="))
 
 (define (update-tag-status)
   (let loop ((tags (collect-all-tags))
-             (str (string-append (current-view)
+             (str (string-append (current-tag)
                                  " "
                                  (string-current-layout)
                                  " <"
@@ -29,7 +29,7 @@
                                  ">")))
     (if (pair? tags)
         (loop (cdr tags)
-              (if (or (string=? (car tags) (current-view))
+              (if (or (string=? (car tags) (current-tag))
                       (string=? (car tags) (prev-view)))
                   str
                   (string-append str " " (car tags))))
@@ -55,24 +55,24 @@
 (define (view-tag tag)
   (if (and (string? tag) (positive? (string-length tag)))
       (begin
-        (if (not (string=? (current-view) tag))
-            (prev-view (current-view)))
-        (view-clients tag (current-layout)))))
+        (if (not (string=? (current-tag) tag))
+            (prev-view (current-tag)))
+        (view-clients tag current-layout))))
 
 (define (toggle-fullscreen)
-  (view-clients (current-view) (if (eq? (current-layout) fullscreen)
+  (view-clients (current-tag) (if (eq? current-layout fullscreen)
                                    (tiler 56/100)
                                    fullscreen)))
 
 (define (tm-switch-to) 
-  (write-to-pipe (string-append "switch_to " (current-view)) *timing-fifo*))
+  (write-to-pipe (string-append "switch_to " (current-tag)) *timing-fifo*))
 
 (define (dmenu title lines)
   (string-trim-right
     (pipe-command (append (split-string #\space (getenv "DMENU"))
                                         (list "-p" title))
                           lines)
-    #\newline))
+                  #\newline))
 
 ;; After start we see updated tagbar
 (update-tag-status)
@@ -96,7 +96,7 @@
                               (tm-switch-to)))
 
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
-                                                     (current-view))))
+                                                     (current-tag))))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
                               (view-tag (dmenu "View:" (collect-all-tags)))
@@ -137,19 +137,21 @@
           "l"
           (lambda () (resize-client-rel! (current-client) 50 0 0 0)))
 
-(bind-key 0 "XF86AudioRaiseVolume"
+'(bind-key 0 "XF86AudioRaiseVolume"
           (lambda () (shell-command "amixer set Master 2%+ &")))
 
-(bind-key 0 "XF86AudioLowerVolume"
+'(bind-key 0 "XF86AudioLowerVolume"
           (lambda () (shell-command "amixer set Master 2%- &")))
 
 (bind-key 0 "XF86Standby" (lambda () (shell-command "sudo pm-suspend &")))
 
-(bind-key 0 "XF86AudioMute"
+'(bind-key 0 "XF86AudioMute"
           (lambda () (shell-command "amixer set Master toggle &")))
 
 (bind-key 0 "XF86MonBrightnessUp"
-          (lambda () (shell-command "backlight_samsung 10+ &")))
+          (lambda () (shell-command "backlight_samsung 10+&")))
 
 (bind-key 0 "XF86MonBrightnessDown"
-          (lambda () (shell-command "backlight_samsung 10- &")))
+          (lambda () (shell-command "backlight_samsung 10-&")))
+
+(bind-key x#+mod4-mask+ "g" (lambda () (shell-command "plumb &")))

@@ -15,37 +15,39 @@
 (define (tiler ratio)
   (lambda (screen)
     (call-with-managed-area
-      screen
-      (lambda (sx sy sw sh)
-        (let ((zoom-width (floor (* sw ratio)))
-              (clients (filter client-tiled? (screen-clients screen))))
-          (cond ((null? clients))
-                ((null? (cdr clients))
-                 (resize-client! (car clients)
-                                 sx
-                                 sy
-                                 (no-border sw (car clients))
-                                 (no-border sh (car clients))))
-                (else
-                  (resize-client! (car clients)
-                                  sx
+     screen
+     (lambda (sx sy sw sh)
+       (let ((zoom-width (floor (* sw ratio)))
+             (clients (filter client-tiled? (clients-list screen))))
+         (cond ((null? clients))
+               ((null? (cdr clients))
+                (resize-client! (car clients)
+                                sx
+                                sy
+                                (no-border sw (car clients))
+                                (no-border sh (car clients))))
+               (else
+                (resize-client! (car clients)
+                                sx
+                                sy
+                                (no-border zoom-width (car clients))
+                                (no-border sh (car clients)))
+                (tile-client-rect (cdr clients)
+                                  zoom-width
                                   sy
-                                  (no-border zoom-width (car clients))
-                                  (no-border sh (car clients)))
-                  (tile-client-rect (cdr clients)
-                                    zoom-width
-                                    sy
-                                    (- sw zoom-width)
-                                    sh))))))))
+                                  (- sw zoom-width)
+                                  sh))))))
+    (restack (current-display) screen (clients-stack screen))))
 
 (define (fullscreen screen)
   (call-with-managed-area
-    screen
-    (lambda (sx sy sw sh)
-      (for-each (lambda (c)
-                  (resize-client! c
-                                  sx
-                                  sy
-                                  (no-border sw c)
-                                  (no-border sh c)))
-                (filter client-tiled? (screen-clients screen))))))
+   screen
+   (lambda (sx sy sw sh)
+     (for-each (lambda (c)
+                 (resize-client! c
+                                 sx
+                                 sy
+                                 (no-border sw c)
+                                 (no-border sh c)))
+               (filter client-tiled? (clients-list screen)))))
+  (restack (current-display) screen (clients-list screen)))
