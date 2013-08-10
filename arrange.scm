@@ -54,8 +54,7 @@
            (x-set-input-focus dpy
                               (client-window c)
                               x#+revert-to-pointer-root+
-                              x#+current-time+)
-           (x-raise-window dpy (client-window c)))
+                              x#+current-time+))
           (else (x-set-input-focus dpy
                                    (screen-root s)
                                    x#+revert-to-pointer-root+
