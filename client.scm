@@ -1,5 +1,5 @@
 (define-record-type client
-  (make-client window x y w h tags old-border)
+  (make-client window x y w h tags old-border user-data-table)
   client?
   (name client-name set-client-name!)
   (window client-window)
@@ -24,7 +24,8 @@
   (maxa client-maxa set-client-maxa!)
   (minw client-minw set-client-minw!)
   (minh client-minh set-client-minh!)
-  (mina client-mina set-client-mina!))
+  (mina client-mina set-client-mina!)
+  (user-data-table client-user-data-table))
 
 (define screen-edge-width 32)
 (define +client-input-mask+ (bitwise-ior x#+enter-window-mask+
@@ -39,10 +40,16 @@
                (max (x-window-attributes-width wa) 0)
                (max (x-window-attributes-height wa) 0)
                '()
-               (x-window-attributes-border-width wa)))
+               (x-window-attributes-border-width wa)
+               (make-table)))
 
 (define sort-clients-list (lambda (x) x))
 (define sort-clients-focus-stack (lambda (x) x))
+
+(define (client-user-data c key . args)
+  (cond ((not (client? c)) #f)
+        ((not (pair? args)) (table-ref (client-user-data-table c) key #f))
+        (else (table-set! (client-user-data-table c) key (car args)))))
 
 (define (clients-list s . new)
   (if (pair? new)
