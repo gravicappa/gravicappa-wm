@@ -1,3 +1,6 @@
+(define (tag-hook c tag) #t)
+(define (untag-hook c tag) #t)
+
 (define (focus-previous)
   (let ((c (filter client-visible? (clients-stack (current-screen)))))
     (if (and (pair? c) (pair? (cdr c)) (client? (cadr c)))
@@ -53,6 +56,18 @@
 (define (focus-before)
   (focus-rel find-client-before (current-client)))
 
+(define (nth-client i)
+  (let loop ((c (filter client-visible? (clients-list (current-screen))))
+             (j 1))
+    (cond ((not (pair? c)) #f)
+          ((= i j) (car c))
+          (#t (loop (cdr c) (+ j 1))))))
+
+(define (focus-nth i)
+  (let ((c (nth-client i)))
+    (if (client? c)
+        (focus-client (current-display) c))))
+
 (define (zoom-client client)
   (if (client? client)
       (let* ((s (current-screen))
@@ -90,6 +105,7 @@
         (if (not (member tag tags))
             (begin
               (set-client-tags! c (cons tag tags))
+              (tag-hook c tag)
               (update-tag-hook)
               (update-layout))))))
 
@@ -98,6 +114,7 @@
       (let ((new (remove-if (lambda (t) (string=? t tag)) (client-tags c))))
         (if (pair? new)
             (begin
+              (untag-hook c tag)
               (set-client-tags! c new)
               (update-tag-hook)
               (update-layout))))))
