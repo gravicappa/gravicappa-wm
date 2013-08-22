@@ -23,24 +23,24 @@ source. Sample can be taken from sample/gravicappa-wm.scm.
 > TODO
 
 ## Hooks
-### `(shutdown-hook)`
+### (shutdown-hook)
 
 It is called with no arguments on exit.
 
-### `(update-tag-hook)`
+### (update-tag-hook)
 
 It is called with no arguments when taglist is updated.
 
-### `(client-create-hook client classname)`
+### (client-create-hook client classname)
 
 It is called with new `client` is created before it is mapped. Automatic
 tagging can be performed here. `classname` is cons of strings with x11 window
 class information.
 
-### `(tag-hook client tag)`
+### (tag-hook client tag)
 
 It is called when `client` is tagged by `tag`.
 
-### `(untag-hook client tag)`
+### (untag-hook client tag)
 
 It is called when `client` is untagged from `tag`.
