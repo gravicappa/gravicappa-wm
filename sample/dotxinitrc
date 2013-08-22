@@ -26,3 +26,6 @@ done | dzen2 $dzen_opts -ta l -w 1000 -p &
 # session unless starting applications is impossible for still unknown
 # reason.
 exec screen -S window-manager ~/bin/gravicappa-wm
+
+# Also (stdin)[github.com/gravicappa/piper] tool can be used:
+exec stdin gravicappa-wm

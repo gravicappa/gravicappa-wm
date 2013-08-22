@@ -1,27 +1,15 @@
 ;; including library where pipe-command, (un)tag, view-tag,
 ;; update-tag-status, toggle-fullscreen, eval-from-string, split-string
 ;; are defined.
-(include "~/dev/uwm/sample/utils.scm")
+(load "~/dev/gravicappa-wm/sample/utils.scm")
+(load "~/dev/gravicappa-wm/sample/pipe-command.scm")
+(load "~/dev/gravicappa-wm/sample/dmenu.scm")
 
 (border-colour #xf0f0a0)
 (selected-border-colour #xaf0000)
 (border-width 2)
 (bar-height 16)
 (tile-ratio 56/100)
-
-(define logger '("log" "stat/timing"))
-
-(define (update-timing-stats)
-  (let* ((sec (inexact->exact (floor (time->seconds (current-time)))))
-         (s (string-append (number->string sec)
-                           " switch_to "
-                           (current-tag))))
-    (pipe-command logger (list s))))
-
-(define (dmenu title lines)
-  (pipe-command (append (split-string #\space (getenv "DMENU"))
-                                      (list "-p" title))
-                        lines))
 
 ;; After start we see updated tagbar
 (update-tag-status)
@@ -35,8 +23,7 @@
 ;; * client-create-hook — is called with (client classname) arguments when
 ;;   new client is created before it is mapped. Automatic tagging is
 ;;   done here. classname is cons with x11 window class information.
-;; * arrange — is called with (screen) arguments when layout is to be
-;;   arranged.
+;; * tag-hook — is called 
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
@@ -55,8 +42,7 @@
                                                      (current-tag))))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
-                              (view-tag (dmenu "View:" (collect-all-tags)))
-                              (update-timing-stats)))
+                              (view-tag (dmenu "View:" (collect-all-tags)))))
 
 (bind-key x#+mod4-mask+ "e"
           (lambda () (eval-from-string (dmenu "Eval:" '()))))

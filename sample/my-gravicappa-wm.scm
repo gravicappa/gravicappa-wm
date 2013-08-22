@@ -1,13 +1,14 @@
 ;; including library where (un)tag, view-tag, update-tag-status,
 ;; toggle-fullscreen, eval-from-string, split-string are defined
-(include "~/dev/uwm/sample/utils.scm")
-(include "~/dev/uwm/sample/pipe-command.scm")
+(include "~/dev/gravicappa-wm/sample/utils.scm")
+(include "~/dev/gravicappa-wm/sample/pipe-command.scm")
+(include "~/dev/gravicappa-wm/sample/dmenu.scm")
 
-(border-colour #xf0f0a0)
-(selected-border-colour #xaf0000)
-(border-width 2)
+(border-colour #xe0f0e0)
+(selected-border-colour #xaf00f0)
+(border-width 1)
 (bar-height 16)
-(initial-view "talk")
+(initial-view "!")
 (define prev-view (make-parameter ""))
 (define *tags-fifo*
   (string-append "/tmp/gravicappa-wm.tags" (getenv "DISPLAY")))
@@ -66,13 +67,6 @@
 
 (define (tm-switch-to) 
   (write-to-pipe (string-append "switch_to " (current-tag)) *timing-fifo*))
-
-(define (dmenu title lines)
-  (string-trim-right
-    (pipe-command (append (split-string #\space (getenv "DMENU"))
-                                        (list "-p" title))
-                          lines)
-                  #\newline))
 
 ;; After start we see updated tagbar
 (update-tag-status)
