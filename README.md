@@ -1,6 +1,7 @@
 # Installation
 
-Enter the following commands to build and install executable gravicappa-wm:
+Enter the following commands to build and install executable
+**gravicappa-wm**:
 
     make
     make destdir=/usr install
@@ -15,8 +16,8 @@ ghostscript) specify gsc parameter:
 See included `sample/dotxinitrc` which shows possible way of running window
 manager. Those commands can be added into your `.xinitrc`.
 
-gravicappa-wm reads ~/.gravicappa-wm.scm configuration file which is a scheme
-source. Sample can be taken from sample/gravicappa-wm.scm.
+**gravicappa-wm** reads `~/.gravicappa-wm.scm` configuration file which is a
+scheme source. Sample can be taken from sample/gravicappa-wm.scm.
 
 # Customizing
 
@@ -25,11 +26,11 @@ source. Sample can be taken from sample/gravicappa-wm.scm.
 ## Hooks
 ### (shutdown-hook)
 
-It is called with no arguments on exit.
+It is called on exit.
 
 ### (update-tag-hook)
 
-It is called with no arguments when taglist is updated.
+It is called when taglist is updated.
 
 ### (client-create-hook client classname)
 
