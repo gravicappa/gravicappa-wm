@@ -1,11 +1,11 @@
 (define *user-config-file* "~/.gravicappa-wm.scm")
 
 ;;; defaults
-(define border-colour (make-parameter #xf0f0a0))
-(define selected-border-colour (make-parameter #x00af00))
-(define border-width (make-parameter 2))
-(define bar-height (make-parameter 16))
-(define initial-view (make-parameter "!"))
+(define border-colour #xf0f0a0)
+(define selected-border-colour #x00af00)
+(define border-width 1)
+(define borders (vector 0 16 0 0))
+(define initial-tag "First")
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)

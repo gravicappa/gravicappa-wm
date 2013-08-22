@@ -1,3 +1,5 @@
+(define tile-ratio 56/100)
+
 (define (tile-client-rect clients x y w h)
   (let loop ((clients clients)
              (n (length clients))
@@ -12,32 +14,31 @@
                 (- h (client-h c) (* 2 (client-border c)))
                 (+ y (client-h c) (* 2 (client-border c))))))))
 
-(define (tiler ratio)
-  (lambda (screen)
-    (call-with-managed-area
-     screen
-     (lambda (sx sy sw sh)
-       (let ((zoom-width (floor (* sw ratio)))
-             (clients (filter client-tiled? (clients-list screen))))
-         (cond ((null? clients))
-               ((null? (cdr clients))
-                (resize-client! (car clients)
-                                sx
+(define (tile screen)
+  (call-with-managed-area
+   screen
+   (lambda (sx sy sw sh)
+     (let ((zoom-width (floor (* sw tile-ratio)))
+           (clients (filter client-tiled? (clients-list screen))))
+       (cond ((null? clients))
+             ((null? (cdr clients))
+              (resize-client! (car clients)
+                              sx
+                              sy
+                              (no-border sw (car clients))
+                              (no-border sh (car clients))))
+             (else
+              (resize-client! (car clients)
+                              sx
+                              sy
+                              (no-border zoom-width (car clients))
+                              (no-border sh (car clients)))
+              (tile-client-rect (cdr clients)
+                                zoom-width
                                 sy
-                                (no-border sw (car clients))
-                                (no-border sh (car clients))))
-               (else
-                (resize-client! (car clients)
-                                sx
-                                sy
-                                (no-border zoom-width (car clients))
-                                (no-border sh (car clients)))
-                (tile-client-rect (cdr clients)
-                                  zoom-width
-                                  sy
-                                  (- sw zoom-width)
-                                  sh))))))
-    (restack (current-display) screen (clients-stack screen))))
+                                (- sw zoom-width)
+                                sh))))))
+  (restack (current-display) screen (clients-stack screen)))
 
 (define (fullscreen screen)
   (call-with-managed-area

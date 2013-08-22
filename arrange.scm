@@ -44,13 +44,13 @@
                           (client-window (current-client)))
          (x-set-window-border dpy
                               (client-window (current-client))
-                              (get-colour dpy s (border-colour)))))
+                              (get-colour dpy s border-colour))))
     (cond ((client? c)
            (move-client-to-top! c clients-stack s)
            (grab-buttons! c)
            (x-set-window-border dpy
                                 (client-window c)
-                                (get-colour dpy s (selected-border-colour)))
+                                (get-colour dpy s selected-border-colour))
            (x-set-input-focus dpy
                               (client-window c)
                               x#+revert-to-pointer-root+
@@ -81,15 +81,15 @@
         (do () ((not (x-check-mask-event dpy x#+enter-window-mask+)))))))
 
 (define (call-with-managed-area screen ret)
-  (ret (screen-x screen)
-       (+ (screen-y screen) (bar-height))
-       (screen-w screen)
-       (- (screen-h screen) (bar-height))))
+  (ret (+ (screen-x screen) (vector-ref borders 0))
+       (+ (screen-y screen) (vector-ref borders 1))
+       (- (screen-w screen) (vector-ref borders 0) (vector-ref borders 2))
+       (- (screen-h screen) (vector-ref borders 1) (vector-ref borders 3))))
 
 (define (no-border a client)
   (- a (* 2 (client-border client))))
 
-(define current-layout (tiler 56/100))
+(define current-layout tile)
 
 (define (arrange-screen dpy screen)
   (update-visibility dpy screen)

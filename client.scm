@@ -236,7 +236,7 @@
         (w (client-window c)))
     (cond ((client-wants-fullscreen? c)
            (fullscreenize-client! c))
-          (else (set-client-border! c (border-width))
+          (else (set-client-border! c border-width)
                 (keep-rect-on-screen
                   (client-x c) (client-y c) (client-w c) (client-h c)
                   (client-border c) (current-screen)
@@ -244,7 +244,7 @@
                     (set-client-x! c x)
                     (set-client-y! c y)))))
     (x-configure-window dpy w border-width: (client-border c))
-    (x-set-window-border dpy w (get-colour dpy s (border-colour)))
+    (x-set-window-border dpy w (get-colour dpy s border-colour))
     (configure-client-window! c)
     (update-size-hints! c)
     (x-select-input dpy w +client-input-mask+)
@@ -355,8 +355,8 @@
         (if (and (positive? w) (positive? h))
             (let ((x (floor (clamp x (+ w (* 2 border)) sx sw)))
                   (y (floor (clamp y (+ h (* 2 border)) sy sh)))
-                  (w (floor (max w (bar-height))))
-                  (h (floor (max h (bar-height)))))
+                  (w (floor (max w 16)))
+                  (h (floor (max h 16))))
               (if (not (and (= (client-x c) x) (= (client-y c) y)
                             (= (client-w c) w) (= (client-h c) h)))
                   (begin

@@ -36,7 +36,7 @@
                               (x-display-height dpy i)
                               root
                               dpy
-                              (initial-view)
+                              initial-tag
                               '()
                               '())))
     (x-change-property-atoms dpy

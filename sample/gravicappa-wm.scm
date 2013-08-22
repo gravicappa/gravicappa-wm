@@ -5,11 +5,12 @@
 (load "~/dev/gravicappa-wm/sample/pipe-command.scm")
 (load "~/dev/gravicappa-wm/sample/dmenu.scm")
 
-(border-colour #xf0f0a0)
-(selected-border-colour #xaf0000)
-(border-width 2)
-(bar-height 16)
-(tile-ratio 56/100)
+(set! border-colour #xf0f0a0)
+(set! selected-border-colour #xaf0000)
+(set! border-width 2)
+
+;; 16 pixel border on top of the screen (order is left top right bottom)
+(set! borders (vector 0 16 0 0))
 
 ;; After start we see updated tagbar
 (update-tag-status)
@@ -36,8 +37,6 @@
 (bind-key x#+mod4-mask+ "p" (lambda () (shell-command "$DMENU_RUN &")))
 (bind-key x#+mod4-mask+ "f" toggle-fullscreen)
 (bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
-(bind-key x#+mod4-mask+ "r" (lambda () (view-tag (prev-view))))
-
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
                                                      (current-tag))))
 

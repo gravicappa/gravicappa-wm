@@ -1,3 +1,5 @@
+(define prev-tag "")
+
 (define (eval-from-string str)
   (if (string? str)
       (with-exception-handler
@@ -57,3 +59,15 @@
       (begin
         (thread-sleep! 1/100)
         (write-to-file-or-fail str filename))))
+
+(define (view-tag tag)
+  (if (and (string? tag) (positive? (string-length tag)))
+      (begin
+        (if (not (string=? (current-tag) tag))
+            (set! prev-tag (current-tag)))
+        (view-clients tag current-layout))))
+
+(define (parse-tags str)
+  (if (and (string? str) (positive? (string-length str)))
+      (split-string #\space str)
+      '()))

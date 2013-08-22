@@ -1,15 +1,14 @@
 ;; including library where (un)tag, view-tag, update-tag-status,
 ;; toggle-fullscreen, eval-from-string, split-string are defined
-(include "~/dev/gravicappa-wm/sample/utils.scm")
-(include "~/dev/gravicappa-wm/sample/pipe-command.scm")
-(include "~/dev/gravicappa-wm/sample/dmenu.scm")
+(load "~/dev/gravicappa-wm/sample/utils.scm")
+(load "~/dev/gravicappa-wm/sample/pipe-command.scm")
+(load "~/dev/gravicappa-wm/sample/dmenu.scm")
 
-(border-colour #xe0f0e0)
-(selected-border-colour #xaf00f0)
-(border-width 1)
-(bar-height 16)
-(initial-view "!")
-(define prev-view (make-parameter ""))
+(set! border-colour #xe0f0e0)
+(set! selected-border-colour #xaf00f0)
+(set! border-width 1)
+(set! initial-tag "^")
+
 (define *tags-fifo*
   (string-append "/tmp/gravicappa-wm.tags" (getenv "DISPLAY")))
 (define *timing-fifo*
@@ -26,12 +25,12 @@
                                  " "
                                  (string-current-layout)
                                  " <"
-                                 (prev-view)
+                                 prev-tag
                                  ">")))
     (if (pair? tags)
         (loop (cdr tags)
               (if (or (string=? (car tags) (current-tag))
-                      (string=? (car tags) (prev-view)))
+                      (string=? (car tags) prev-tag))
                   str
                   (string-append str " " (car tags))))
         (write-to-pipe str *tags-fifo*))))
@@ -53,17 +52,10 @@
         (lambda (t) (untag-client c t))
         (parse-tags (dmenu "Untag client:" (client-tags c))))))
 
-(define (view-tag tag)
-  (if (and (string? tag) (positive? (string-length tag)))
-      (begin
-        (if (not (string=? (current-tag) tag))
-            (prev-view (current-tag)))
-        (view-clients tag current-layout))))
-
 (define (toggle-fullscreen)
   (view-clients (current-tag) (if (eq? current-layout fullscreen)
-                                   (tiler 56/100)
-                                   fullscreen)))
+                                  tile
+                                  fullscreen)))
 
 (define (tm-switch-to) 
   (write-to-pipe (string-append "switch_to " (current-tag)) *timing-fifo*))
@@ -86,7 +78,7 @@
 (bind-key x#+mod4-mask+ "f" toggle-fullscreen)
 (bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
 (bind-key x#+mod4-mask+ "r" (lambda ()
-                              (view-tag (prev-view))
+                              (view-tag prev-tag)
                               (tm-switch-to)))
 
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
