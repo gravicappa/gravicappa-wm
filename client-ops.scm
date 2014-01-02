@@ -73,10 +73,7 @@
       (let* ((s (current-screen))
              (clients (filter client-tiled? (clients-list s))))
         (if (and (pair? clients)
-                 (eq? client (car clients))
-                 (pair? (cdr clients))
-                 (cadr clients))
-            (move-client-to-top! (cadr clients) clients-list s)
+                 (not (eq? client (car clients))))
             (move-client-to-top! client clients-list s))
         (arrange-screen (current-display) s))))
 

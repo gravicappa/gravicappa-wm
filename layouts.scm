@@ -50,5 +50,5 @@
                                  sy
                                  (no-border sw c)
                                  (no-border sh c)))
-               (filter client-tiled? (clients-list screen)))))
-  (restack (current-display) screen (clients-list screen)))
+               (filter client-tiled? (clients-stack screen)))))
+  (restack (current-display) screen (clients-stack screen)))

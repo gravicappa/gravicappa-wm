@@ -12,7 +12,6 @@
 (bind-key x#+mod4-mask+ "j" focus-before)
 (bind-key x#+mod4-mask+ "k" focus-after)
 (bind-key x#+mod4-mask+ "l" focus-right)
-(bind-key x#+mod4-mask+ "a" focus-previous)
 (bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
 (bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
 (bind-key x#+mod4-mask+ "1" (lambda () (focus-nth 1)))
