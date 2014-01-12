@@ -1,21 +1,26 @@
-;; including library where pipe-command, (un)tag, view-tag,
-;; update-tag-status, toggle-fullscreen, eval-from-string, split-string
-;; are defined.
-(load "~/dev/gravicappa-wm/sample/utils.scm")
-(load "~/dev/gravicappa-wm/sample/pipe-command.scm")
-(load "~/dev/gravicappa-wm/sample/dmenu.scm")
+;; Include library where pipe-command, (un)tag, view-tag, toggle-fullscreen,
+;; eval-from-string, split-string are defined.
+;; Assumed that the corresponding files were copied from `sample/` directory.
+(load "~/.gravicappa-wm.d/utils.scm")
+(load "~/.gravicappa-wm.d/pipe-command.scm")
+(load "~/.gravicappa-wm.d/dmenu.scm")
 
 (set! border-colour #xf0f0a0)
 (set! selected-border-colour #xaf0000)
 (set! border-width 2)
 
-;; 16 pixel border on top of the screen (order is left top right bottom)
+;; 16 pixel border on top of the screen (order is left top right bottom).
 (set! borders (vector 0 16 0 0))
 
-;; After start we see updated tagbar
+(define (update-tag-status)
+  ;; Pass all tags provided by (collect-all-tags) to some status bar
+  ;; application (e.g. dzen2).
+  #f)
+
+;; After start we update status bar
 (update-tag-status)
 
-;; Updating tagbar every time it changes
+;; Update tagbar every time it changes
 (define update-tag-hook update-tag-status)
 
 ;; All hooks are:
@@ -34,7 +39,7 @@
 (bind-key x#+mod4-mask+ "a" focus-previous)
 (bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
 (bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
-(bind-key x#+mod4-mask+ "p" (lambda () (shell-command "$DMENU_RUN &")))
+(bind-key x#+mod4-mask+ "p" (lambda () (shell-command "dmenu_run&")))
 (bind-key x#+mod4-mask+ "f" toggle-fullscreen)
 (bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
 (bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)

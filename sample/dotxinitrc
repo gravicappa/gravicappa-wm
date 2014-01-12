@@ -27,5 +27,5 @@ done | dzen2 $dzen_opts -ta l -w 1000 -p &
 # reason.
 exec screen -S window-manager ~/bin/gravicappa-wm
 
-# Also (stdin)[github.com/gravicappa/piper] tool can be used:
-exec stdin gravicappa-wm
+# Also (stdio)[github.com/gravicappa/piper] tool can be used:
+exec stdio gravicappa-wm
