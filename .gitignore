@@ -11,3 +11,4 @@ gravicappa-wm
 config.mk
 tests
 stdio
+utils/xshowid

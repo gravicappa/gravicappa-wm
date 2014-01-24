@@ -1,9 +1,9 @@
-name = xshownum
+name = xshowid
 CC = gcc
 CFLAGS = -O0 -g -Wall
 LDFLAGS += -lxcb
 
 all: $(name)
 
-$(name): xshownum.c
+$(name): xshowid.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
