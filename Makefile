@@ -18,13 +18,16 @@ deps = $(wildcard *.scm)
 
 .PHONY: all clean install
 
-all: $(exe)
+all: $(exe) stdio
 
 clean:
 	-rm *.c *.o *.o* $(executable) 2>/dev/null
 
 $(exe): $(src) $(deps)
 	$(GSC) $(GSCFLAGS) -exe -o $@ $(src)
+
+stdio: stdio.c
+	$(CC) $< -o $@ -lutil
 
 install:
 	$(install) -m 755 $(exe) $(destdir)/bin/
