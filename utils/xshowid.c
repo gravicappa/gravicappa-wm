@@ -33,7 +33,6 @@ struct font {
 };
 
 xcb_connection_t *c;
-xcb_screen_t *scr;
 struct font fonts[NFONTS];
 struct node *windows;
 
@@ -48,13 +47,6 @@ die(const char *fmt, ...)
 	va_end(args);
 	release();
 	exit(1);
-}
-
-void
-set_colour(xcb_gcontext_t gc, int type, int col)
-{
-  uint32_t val[2] = {col, 0};
-  xcb_change_gc(c, gc, type, val);
 }
 
 int
@@ -78,8 +70,21 @@ draw_strn(struct node *node, int len, const char *str, int x, int y)
 	xcb_image_text_8(c, len, node->win, node->gc, x, y, str);
 }
 
+xcb_screen_t *
+screen_from_root(xcb_window_t root)
+{
+  xcb_screen_iterator_t it;
+  xcb_screen_t *s;
+  it = xcb_setup_roots_iterator(xcb_get_setup(c));
+  s = it.data;
+  for (; it.rem; xcb_screen_next(&it))
+    if (it.data->root == root)
+      return it.data;
+  return s;
+}
+
 int
-get_win_pos(xcb_window_t win, int r[4])
+get_win_info(xcb_window_t win, int r[4], xcb_screen_t **scr)
 {
   xcb_get_geometry_reply_t *geom;
   xcb_get_geometry_cookie_t cookie = xcb_get_geometry(c, win);
@@ -91,10 +96,11 @@ get_win_pos(xcb_window_t win, int r[4])
   r[2] = geom->width;
   r[3] = geom->height;
   free(geom);
+  *scr = screen_from_root(win);
   return 0;
 }
 
-int
+void
 init_fonts()
 {
 	int h, maxh, i, n = sizeof(fonts) / sizeof(fonts[0]);
@@ -121,16 +127,19 @@ init_fonts()
 	}
 	for (i = 0; i < n; ++i)
 		fonts[i].height = maxh;
-  return maxh;
 }
 
-struct node *
-mk_num_window(int r[4], int num)
+int
+mk_num_window(xcb_screen_t *scr, int r[4], int num)
 {
   struct node *node;
   struct xcb_rectangle_t rect = {0};
 	unsigned int mask, val[4], nstr;
   char str[10];
+
+  if ((r[2] <= 1 && r[3] <= 1)
+      || r[0] > scr->width_in_pixels || r[1] > scr->height_in_pixels)
+    return -1;
 
   node = malloc(sizeof(struct node));
   if (!node)
@@ -138,8 +147,8 @@ mk_num_window(int r[4], int num)
 
   nstr = snprintf(str, sizeof(str), "%d", num);
 	node->win = xcb_generate_id(c);
-  rect.x = r[0];
-  rect.y = r[1];
+  rect.x = (r[0] >= 0) ? r[0] : 0;
+  rect.y = (r[1] >= 0) ? r[1] : 0;
   rect.width = 100;
   rect.height = 100;
 	mask = XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK;
@@ -151,7 +160,6 @@ mk_num_window(int r[4], int num)
                     XCB_WINDOW_CLASS_INPUT_OUTPUT, scr->root_visual, mask,
                     val);
 	xcb_map_window(c, node->win);
-  xcb_flush(c);
 	mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES;
 	val[0] = scr->black_pixel;
 	val[1] = scr->white_pixel;
@@ -162,17 +170,17 @@ mk_num_window(int r[4], int num)
   val[1] = fonts[0].height + BORDER * 2;
   mask = XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT;
 	xcb_configure_window(c, node->win, mask, val);
-  set_colour(node->gc, XCB_GC_FOREGROUND, COLOUR_BG);
-  set_colour(node->gc, XCB_GC_BACKGROUND, COLOUR_BG);
+  val[0] = COLOUR_BG;
+  val[1] = 0;
+  xcb_change_gc(c, node->gc, XCB_GC_FOREGROUND, val);
+  xcb_change_gc(c, node->gc, XCB_GC_BACKGROUND, val);
   rect.x = rect.y = 0;
   xcb_poly_fill_rectangle (c, node->win, node->gc, 1, &rect);
-  set_colour(node->gc, XCB_GC_FOREGROUND, COLOUR_FG);
+  val[0] = COLOUR_FG;
+  xcb_change_gc(c, node->gc, XCB_GC_FOREGROUND, val);
   draw_strn(node, nstr, str, BORDER, BORDER);
-
 	xcb_grab_keyboard(c, 1, node->win, XCB_CURRENT_TIME, XCB_GRAB_MODE_ASYNC,
 										XCB_GRAB_MODE_ASYNC);
-  xcb_flush(c);
-
   node->next = windows;
   windows = node;
   return 0;
@@ -211,35 +219,33 @@ event_loop()
   int go = 1;
 
   while (go)
-    while (go && (ev = xcb_poll_for_event(c))) {
+    while (go && (ev = xcb_poll_for_event(c)))
       switch (ev->response_type) {
       case XCB_KEY_PRESS: go = 0; break;
       }
       free(ev);
-    }
 }
-
 
 int
 main()
 {
-  int r[4], i = 0;
+  int r[4], i = 1;
   unsigned int win;
   char buf[256];
+  xcb_screen_t *s;
 
   c = xcb_connect(0, 0);
   if (!c)
     die("Cannot open display.\n");
   init_fonts();
-  scr = xcb_setup_roots_iterator(xcb_get_setup(c)).data;
-  while (fgets(buf, sizeof(buf), stdin)) {
-    if (sscanf(buf, "%u", &win) == 1 && !get_win_pos(win, r)) {
-      if (mk_num_window(r, ++i))
-        die("Cannot create window\n");
-    }
-  }
-  if (i)
+  while (fgets(buf, sizeof(buf), stdin))
+    if (sscanf(buf, "%u", &win) == 1
+        && !get_win_info(win, r, &s) && !mk_num_window(s, r, i))
+      ++i;
+  if (i) {
+    xcb_flush(c);
     event_loop();
+  }
   release();
   return 0;
 }
