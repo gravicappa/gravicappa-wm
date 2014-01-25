@@ -5,15 +5,10 @@
 #include <stdarg.h>
 
 const char *fontstr = "-misc-fixed-bold-r-*-*-18-*-*-*-*-*-iso10646-1";
-
-enum conf {
-  COLOUR_BG = 0x700000,
-  COLOUR_FG = 0xffffff,
-  COLOUR_SEL_FG = 0xffffff,
-  COLOUR_SEL_BG = 0x000000,
-  BORDER = 4,
-  CENTER = 0,
-};
+unsigned int colour_bg = 0xffef70;
+unsigned int colour_fg = 0x000000;
+unsigned int border = 8;
+unsigned int centered = 0;
 
 struct node {
   struct node *next;
@@ -22,11 +17,11 @@ struct node {
 };
 
 struct font {
-	xcb_font_t fn;
-	xcb_query_font_reply_t *info;
-	xcb_charinfo_t *tbl;
-	int height;
-	int range[2];
+  xcb_font_t fn;
+  xcb_query_font_reply_t *info;
+  xcb_charinfo_t *tbl;
+  int height;
+  int range[2];
 };
 
 xcb_connection_t *c;
@@ -38,30 +33,30 @@ void release();
 void
 die(const char *fmt, ...)
 {
-	va_list args;
-	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
-	va_end(args);
-	release();
-	exit(1);
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+  release();
+  exit(1);
 }
 
 int
 strn_width(int len, const char *str)
 {
-	int i, ch, w = 0;
-	for (i = 0; i < len && (ch = str[i]); ++i)
-		w += ((ch > font.range[0] && ch < font.range[1])
-					? font.tbl[ch - font.range[0]].character_width : 0);
-	return w;
+  int i, ch, w = 0;
+  for (i = 0; i < len && (ch = str[i]); ++i)
+    w += ((ch > font.range[0] && ch < font.range[1])
+          ? font.tbl[ch - font.range[0]].character_width : 0);
+  return w;
 }
 
 void
 draw_strn(struct node *node, int len, const char *str, int x, int y)
 {
-	xcb_change_gc(c, node->gc, XCB_GC_FONT, &font.fn);
-	y += font.height - font.info->font_descent;
-	xcb_image_text_8(c, len, node->win, node->gc, x, y, str);
+  xcb_change_gc(c, node->gc, XCB_GC_FONT, &font.fn);
+  y += font.height - font.info->font_descent;
+  xcb_image_text_8(c, len, node->win, node->gc, x, y, str);
 }
 
 xcb_screen_t *
@@ -97,10 +92,10 @@ get_win_info(xcb_window_t win, int r[4], xcb_screen_t **scr)
 void
 init_font()
 {
-	xcb_query_font_cookie_t req;
-	xcb_query_font_reply_t *info;
-	xcb_void_cookie_t cookie;
-	xcb_font_t fn;
+  xcb_query_font_cookie_t req;
+  xcb_query_font_reply_t *info;
+  xcb_void_cookie_t cookie;
+  xcb_font_t fn;
 
   fn = xcb_generate_id(c);
   cookie = xcb_open_font_checked(c, fn, strlen(fontstr), fontstr);
@@ -121,7 +116,7 @@ mk_num_window(xcb_screen_t *scr, int r[4], int num)
 {
   struct node *node;
   struct xcb_rectangle_t rect = {0};
-	unsigned int mask, val[4], nstr;
+  unsigned int mask, val[4], nstr;
   char str[10];
 
   if ((r[2] <= 1 && r[3] <= 1)
@@ -133,41 +128,56 @@ mk_num_window(xcb_screen_t *scr, int r[4], int num)
     die("Cannot allocate memory");
 
   nstr = snprintf(str, sizeof(str), "%d", num);
-	node->win = xcb_generate_id(c);
-  rect.width = strn_width(nstr, str) + BORDER * 2;
-  rect.height = font.height + BORDER * 2;
-  rect.x = (r[0] >= 0) ? r[0] : 0;
-  rect.y = (r[1] >= 0) ? r[1] : 0;
-  if (CENTER) {
+  node->win = xcb_generate_id(c);
+  rect.x = r[0];
+  rect.y = r[1];
+  rect.width = strn_width(nstr, str) + border * 2;
+  rect.height = font.height + border * 2;
+  if (centered) {
     rect.x += (r[2] - rect.width) >> 1;
     rect.y += (r[3] - rect.height) >> 1;
   }
-	mask = XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK;
-	val[0] = scr->white_pixel;
-	val[1] = 1;
-	val[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS;
-	xcb_create_window(c, scr->root_depth, node->win, scr->root,
+  rect.x = (rect.x >= 0) ? rect.x : 0;
+  rect.y = (rect.y >= 0) ? rect.y : 0;
+  if (rect.x + rect.width >= scr->width_in_pixels)
+    rect.x = scr->width_in_pixels - rect.width - 1;
+  if (rect.y + rect.height >= scr->height_in_pixels)
+    rect.y = scr->height_in_pixels - rect.height - 1;
+  mask = XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK;
+  val[0] = scr->white_pixel;
+  val[1] = 1;
+  val[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS;
+  xcb_create_window(c, scr->root_depth, node->win, scr->root,
                     rect.x, rect.y, rect.width, rect.height, 0,
                     XCB_WINDOW_CLASS_INPUT_OUTPUT, scr->root_visual, mask,
                     val);
-	xcb_map_window(c, node->win);
-	mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES;
-	val[0] = scr->black_pixel;
-	val[1] = scr->white_pixel;
-	val[2] = 0;
-	node->gc = xcb_generate_id(c);
-	xcb_create_gc(c, node->gc, node->win, mask, val);
-  val[0] = COLOUR_BG;
+  xcb_map_window(c, node->win);
+  mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_GRAPHICS_EXPOSURES;
+  val[0] = scr->black_pixel;
+  val[1] = scr->white_pixel;
+  val[2] = 0;
+  node->gc = xcb_generate_id(c);
+  xcb_create_gc(c, node->gc, node->win, mask, val);
+  val[0] = 1;
   val[1] = 0;
+  xcb_change_gc(c, node->gc, XCB_GC_LINE_WIDTH, val);
+  rect.x = rect.y = 0;
+  val[0] = colour_fg;
+  xcb_change_gc(c, node->gc, XCB_GC_FOREGROUND, val);
+  xcb_poly_fill_rectangle(c, node->win, node->gc, 1, &rect);
+  val[0] = colour_bg;
   xcb_change_gc(c, node->gc, XCB_GC_FOREGROUND, val);
   xcb_change_gc(c, node->gc, XCB_GC_BACKGROUND, val);
-  rect.x = rect.y = 0;
-  xcb_poly_fill_rectangle (c, node->win, node->gc, 1, &rect);
-  val[0] = COLOUR_FG;
+  rect.x++;
+  rect.y++;
+  rect.width -= 2;
+  rect.height -= 2;
+  xcb_poly_fill_rectangle(c, node->win, node->gc, 1, &rect);
+  val[0] = colour_fg;
   xcb_change_gc(c, node->gc, XCB_GC_FOREGROUND, val);
-  draw_strn(node, nstr, str, BORDER, BORDER);
-	xcb_grab_keyboard(c, 1, node->win, XCB_CURRENT_TIME, XCB_GRAB_MODE_ASYNC,
-										XCB_GRAB_MODE_ASYNC);
+  draw_strn(node, nstr, str, border, border);
+  xcb_grab_keyboard(c, 1, node->win, XCB_CURRENT_TIME, XCB_GRAB_MODE_ASYNC,
+                    XCB_GRAB_MODE_ASYNC);
   node->next = windows;
   windows = node;
   return 0;
@@ -178,7 +188,7 @@ release()
 {
   struct node *node, *nodenext;
 
-	xcb_ungrab_keyboard(c, XCB_CURRENT_TIME);
+  xcb_ungrab_keyboard(c, XCB_CURRENT_TIME);
   if (font.info)
     free(font.info);
   if (font.fn)
@@ -192,8 +202,8 @@ release()
     free(node);
   }
   windows = 0;
-	if (c)
-		xcb_disconnect(c);
+  if (c)
+    xcb_disconnect(c);
 }
 
 void
@@ -211,12 +221,30 @@ event_loop()
 }
 
 int
-main()
+main(int argc, char **argv)
 {
-  int r[4], i = 1;
+  int r[4], n = 1, i;
   unsigned int win;
   char buf[256];
   xcb_screen_t *s;
+
+  for (i = 1; i < argc && argv[i][0] == '-'; ++i)
+    if (!strcmp(argv[i], "-fn") && i + 1 < argc)
+      fontstr = argv[++i];
+    else if (!strcmp(argv[i], "-fg") && i + 1 < argc
+        && sscanf(argv[i + 1], "%x", &colour_fg))
+      ++i;
+    else if (!strcmp(argv[i], "-bg") && i + 1 < argc
+        && sscanf(argv[i + 1], "%x", &colour_bg))
+      ++i;
+    else if (!strcmp(argv[i], "-b") && i + 1 < argc
+        && sscanf(argv[i + 1], "%x", &border))
+      ++i;
+    else if (!strcmp(argv[i], "-c"))
+      centered = 1;
+    else
+      die("Usage: xshowid [-c] [-fg fg_colour] [-bg bg_colour] [-fn font]"
+          " [-b border]\n");
 
   c = xcb_connect(0, 0);
   if (!c)
@@ -224,9 +252,9 @@ main()
   init_font();
   while (fgets(buf, sizeof(buf), stdin))
     if (sscanf(buf, "%u", &win) == 1
-        && !get_win_info(win, r, &s) && !mk_num_window(s, r, i))
-      ++i;
-  if (i) {
+        && !get_win_info(win, r, &s) && !mk_num_window(s, r, n))
+      ++n;
+  if (n) {
     xcb_flush(c);
     event_loop();
   }
