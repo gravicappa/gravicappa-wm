@@ -1,19 +1,8 @@
-;;;============================================================================
-;;; File: "Xlib.scm", Time-stamp: <2009-01-13 14:06:51 feeley>
-;;; Copyright (c) 2006-2009 by Marc Feeley, All Rights Reserved.
-;;;
-;;; A simple interface to the X Window System Xlib library.
-;;; Note: This interface to Xlib is still in development.  There are
-;;;       still memory leaks in the interface.
-;;;============================================================================
-
 (declare
   (standard-bindings)
   (extended-bindings)
   (block)
   (not safe))
-
-;;;============================================================================
 
 (c-declare "
 #include <stdlib.h>
@@ -273,7 +262,7 @@ end-of-c-declare
    s = XGetAtomName(___arg1, ___arg2);
    ___result = ___NUL;
    if (s) {
-     ___CHARSTRING_to_SCMOBJ(s, &ret, 0);
+     ___EXT(___CHARSTRING_to_SCMOBJ)(___PSTATE, s, &ret, 0);
      XFree(s);
      ___release_scmobj(ret);
      ___result = ret;
@@ -504,7 +493,7 @@ end-of-c-declare
   if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
     unsigned int i;
 
-    ret = ___alloc_scmobj(___sU32VECTOR, num << 4, 0);
+    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, num << 4);
     if (!___FIXNUMP(ret)) {
       for (i = 0; i < num; ++i)
         ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, wins[i]))));
@@ -528,13 +517,13 @@ end-of-lambda
 
   ___result = 0;
   if (XGetWMProtocols(___arg1, ___arg2, &atoms, &num)) {
-    ret = ___alloc_scmobj(___sU32VECTOR, num << 2, 0);
+    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, num << 2);
     if (!___FIXNUMP(ret)) {
       for (i = 0; i < num; ++i)
         ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, atoms[i]))));
     }
   } else
-    ret = ___alloc_scmobj(___sU32VECTOR, 0, 0);
+    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, 0);
   if (atoms)
     XFree(atoms);
   ___EXT(___release_scmobj)(ret);
@@ -707,9 +696,10 @@ end-of-lambda
 #endif
   if (name.nitems > 0) {
     if (XmbTextPropertyToTextList(___arg1, &name, &list, &num) == Success) {
-      ret = ___alloc_scmobj(___sVECTOR, num << ___LWS, 0);
+      ret = ___alloc_scmobj(___PSTATE, ___sVECTOR, num << ___LWS);
       for (i = 0; i < num; ++i) {
-        ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(list[i], &item, 0);
+        ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(___PSTATE, list[i], &item,
+                                                  0);
         if (___err != ___FIX(___NO_ERR))
           break;
 #if 0
@@ -747,20 +737,22 @@ end-of-lambda
   ret = ___NUL;
   if (XGetClassHint(___arg1, ___arg2, &hint)) {
     ___SCMOBJ name, class;
-    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_name, &name, 0);
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(___PSTATE, hint.res_name, &name,
+                                              0);
     if (___err != ___FIX(___NO_ERR)) {
       XFree(hint.res_name);
       XFree(hint.res_class);
       return ___err;
     }
-    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(hint.res_class, &class, 0);
+    ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(___PSTATE, hint.res_class,
+                                              &class, 0);
     if (___err != ___FIX(___NO_ERR)) {
       ___EXT(___release_scmobj)(name);
       XFree(hint.res_name);
       XFree(hint.res_class);
       return ___err;
     }
-    ret = ___EXT(___make_pair)(name, class, 0);
+    ret = ___EXT(___make_pair)(___PSTATE, name, class);
     ___EXT(___release_scmobj)(name);
     ___EXT(___release_scmobj)(class);
     ___EXT(___release_scmobj)(ret);
@@ -847,10 +839,7 @@ end-of-lambda
    wa.do_not_propagate_mask = ___arg16;
    wa.colormap = ___arg17;
    wa.cursor = ___arg18;
-   ___result = XChangeWindowAttributes(___arg1,
-                                       ___arg2,
-                                       ___arg3,
-                                       &wa);")
+   ___result = XChangeWindowAttributes(___arg1, ___arg2, ___arg3, &wa);")
 
 (define (x-call-with-x11-events x11-display fn)
   (let* ((x11-display-fd (x-connection-number x11-display))
