@@ -120,15 +120,19 @@ end-of-c-declare
 (include "xlib-structs.scm")
 (include "xlib-constants.scm")
 
-(define x-client-message-event-data-l
-  (c-lambda (XEvent* int)
-            long
-            "___result = ___arg1->xclient.data.l[___arg2];"))
-
-(define set-x-client-message-event-data-l!
-  (c-lambda (XEvent* int long)
-            void
-            "___arg1->xclient.data.l[___arg2] = ___arg3;"))
+(define (x-client-message-event-data-l ev)
+  (let ((obj (make-u32vector 5)))
+    ((c-lambda (XClientMessageEvent* scheme-object) void
+               "
+                 long i, x;
+                 XClientMessageEvent *cme = &___arg1->xclient;
+                 for (i = 0; i < 5; ++i) {
+                   x = ___FIX((___CAST(___U32, cme->data.l[i])));
+                   ___U32VECTORSET(___arg2, ___FIX(i), x);
+                 }
+               ")
+     ev obj)
+    obj))
 
 (define x-size-hints-min-aspect-x
   (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.x;"))
@@ -473,27 +477,24 @@ end-of-c-declare
 
             ___result = 0;
             if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
-              for (i = 0; i < num; ++i) {
+              fprintf(stderr, \"query-tree num: %d\\n\", num);
+              for (i = 0; i < num; ++i)
                 query_tree_callback(___arg3, wins[i]);
-              }
               XFree(wins);
               ___result = 1;
             }
             "))
 
 (define (x-query-tree display window)
-  (u32vector->list
-    ((c-lambda (Display* Window) scheme-object
+  ((c-lambda (Display* Window) scheme-object
 #<<end-of-lambda
   Window root, parent, *wins = 0;
-  unsigned int num;
+  unsigned int num, i;
   ___SCMOBJ ret;
 
   ___result = ___FIX(___UNKNOWN_ERR);
   if (XQueryTree(___arg1, ___arg2, &root, &parent, &wins, &num)) {
-    unsigned int i;
-
-    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, num << 4);
+    ret = ___EXT(___alloc_scmobj)(___PSTATE, ___sU32VECTOR, num << 2);
     if (!___FIXNUMP(ret)) {
       for (i = 0; i < num; ++i)
         ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, wins[i]))));
@@ -506,7 +507,7 @@ end-of-c-declare
 end-of-lambda
     )
     display
-    window)))
+    window))
 
 (define (x-get-wm-protocols display window)
   (let ((ret ((c-lambda (Display* Window) scheme-object
@@ -517,13 +518,13 @@ end-of-lambda
 
   ___result = 0;
   if (XGetWMProtocols(___arg1, ___arg2, &atoms, &num)) {
-    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, num << 2);
+    ret = ___EXT(___alloc_scmobj)(___PSTATE, ___sU32VECTOR, num << 2);
     if (!___FIXNUMP(ret)) {
       for (i = 0; i < num; ++i)
         ___U32VECTORSET(ret, ___FIX(i), ___FIX((___CAST(___U32, atoms[i]))));
     }
   } else
-    ret = ___alloc_scmobj(___PSTATE, ___sU32VECTOR, 0);
+    ret = ___EXT(___alloc_scmobj)(___PSTATE, ___sU32VECTOR, 0);
   if (atoms)
     XFree(atoms);
   ___EXT(___release_scmobj)(ret);
@@ -619,19 +620,13 @@ end-of-c-lambda
 
   n = ___CAST(long, ___INT(___U32VECTORLENGTH(___arg4)));
 
-#if 0
-  fprintf(stderr, "(XChangeProperty) %d items\n", n);
-#endif
   data = (Atom *)malloc(n * sizeof(Atom));
-  if (data == 0)
+  if (n > 0 && data == 0)
     return ___FIX(___HEAP_OVERFLOW_ERR);
 
   v = ___CAST(___U32*, ___BODY_AS(___arg4, ___tSUBTYPED));
   for (i = 0; i < n; ++i) {
     data[i] = v[i];
-#if 0
-    fprintf(stderr, "(XChangeProperty) item[%d] = %ld\n", i, data[i]);
-#endif
   }
   ___result = XChangeProperty(___arg1,
                               ___arg2,
@@ -641,7 +636,8 @@ end-of-c-lambda
                               PropModeReplace,
                               (unsigned char *)data,
                               n);
-  free(data);
+  if (data)
+    free(data);
 #if 0
   fprintf(stderr, "(XChangeProperty) ret = %d\n", ___result);
 #endif
@@ -696,7 +692,7 @@ end-of-lambda
 #endif
   if (name.nitems > 0) {
     if (XmbTextPropertyToTextList(___arg1, &name, &list, &num) == Success) {
-      ret = ___alloc_scmobj(___PSTATE, ___sVECTOR, num << ___LWS);
+      ret = ___EXT(___alloc_scmobj)(___PSTATE, ___sVECTOR, num << ___LWS);
       for (i = 0; i < num; ++i) {
         ___err = ___EXT(___UTF_8STRING_to_SCMOBJ)(___PSTATE, list[i], &item,
                                                   0);
@@ -710,7 +706,7 @@ end-of-lambda
         ___EXT(___release_scmobj)(item);
       }
     } else
-      ret = ___alloc_scmobj(___sVECTOR, 0, 0);
+      ret = ___EXT(___alloc_scmobj)(___sVECTOR, 0, 0);
     if (list)
       XFreeStringList(list);
     XFree(name.value);
@@ -718,7 +714,7 @@ end-of-lambda
 #if 0
     fprintf(stderr, "(x-get-text-property-list) is empty\n");
 #endif
-    ret = ___alloc_scmobj(___sVECTOR, 0, 0);
+    ret = ___EXT(___alloc_scmobj)(___sVECTOR, 0, 0);
   }
   ___EXT(___release_scmobj)(ret);
   ___result = ret;
@@ -727,6 +723,21 @@ end-of-lambda
              display
              window
              atom))))
+
+(define x-get-window-property
+  (c-lambda (Display* Window Atom) Atom
+            "int di, ret;
+             unsigned long dl;
+             unsigned char *p;
+             Atom da, atom = None;
+             ret = XGetWindowProperty(___arg1, ___arg2, ___arg3, 0L,
+                                      sizeof(atom), False, XA_ATOM, &da, &di,
+                                      &dl, &dl, &p);
+             if (ret == Success && p) {
+               atom = *(Atom *)p;
+               XFree(p);
+             }
+             ___result = atom;"))
 
 (define x-get-class-hint
   (c-lambda (Display* Window) scheme-object

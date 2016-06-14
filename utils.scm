@@ -1,17 +1,25 @@
 (define x11-event-handlers (make-table))
 
-(define debug-events? (make-parameter #f))
-(define debug-loglevel (make-parameter 1))
+(define debug-events? #f)
+(define debug-loglevel 1)
 
 (define (display-log level . args)
-  (if (<= level (debug-loglevel))
+  (if (<= level debug-loglevel)
       (let ((port (current-error-port)))
         (display ";; " port)
         (for-each (lambda (a) (display a port)) args)
         (newline port)
         (force-output port))))
 
-(define (add-xevent-handler! ev proc) (table-set! x11-event-handlers ev proc))
+(define (find-in-vector test v)
+  (let loop ((i 0))
+    (if (< i (vector-length v))
+        (if (test (vector-ref v i))
+            (vector-ref v i)
+            (loop (+ i 1)))
+        #f)))
+
+(define (set-xevent-handler! ev proc) (table-set! x11-event-handlers ev proc))
 
 (define-macro (eval-at-macroexpand expr)
   (eval expr)
@@ -63,7 +71,8 @@
                    (focus-in . x-focus-change-event)
                    (button-press . x-button-event)
                    (key-press . x-key-event)
-                   (enter-notify . x-crossing-event)))))
+                   (enter-notify . x-crossing-event)
+                   (client-message . x-client-message-event)))))
 
 (eval-at-macroexpand
   (define (struct-from-event event)
@@ -97,12 +106,12 @@
              ,@(if (find 'ev args)
                    `((ev ,ev))
                    '()))
-         (if (debug-events?)
+         (if debug-events?
              (log-x-event ',event ,ev))
          ,@body))))
 
 (define-macro (define-x-event-handler args . body)
-  `(add-xevent-handler!
+  `(set-xevent-handler!
     ,(string->symbol (string-append "x#+" (symbol->string (car args)) "+"))
     (lambda/x-event ,(car args) ,(cdr args) ,@body)))
 

@@ -1,54 +1,45 @@
 (define tile-ratio 56/100)
 
-(define (tile-client-rect clients x y w h)
-  (let loop ((clients clients)
-             (n (length clients))
-             (h h)
-             (y y))
-    (if (pair? clients)
-        (let ((c (car clients))
-              (ch (floor (/ h n))))
-          (resize-client! c x y (no-border w c) (no-border ch c))
-          (loop (cdr clients)
-                (- n 1)
-                (- h (client-h c) (* 2 (client-border c)))
-                (+ y (client-h c) (* 2 (client-border c))))))))
-
 (define (tile screen)
+  (define (tile-rect mwins x y w h)
+    (let loop ((mwins mwins)
+               (n (length mwins))
+               (h h)
+               (y y))
+      (if (pair? mwins)
+          (let* ((m (car mwins))
+                 (ch (no-border (floor (/ h n)) m)))
+            (resize-w/hints m x y (no-border w m) ch)
+            (let ((dy (min (+ (mwin-h m) (* 2 (mwin-border m)) (* 2 gap)))))
+              (loop (cdr mwins) (- n 1) (- h dy) (+ y dy)))))))
+  
   (call-with-managed-area
    screen
    (lambda (sx sy sw sh)
      (let ((zoom-width (floor (* sw tile-ratio)))
-           (clients (filter client-tiled? (clients-list screen))))
-       (cond ((null? clients))
-             ((null? (cdr clients))
-              (resize-client! (car clients)
+           (mwins (filter mwin-tiled? (screen-mwins-list screen))))
+       (cond ((null? mwins))
+             ((null? (cdr mwins))
+              (resize-w/hints (car mwins)
                               sx
                               sy
-                              (no-border sw (car clients))
-                              (no-border sh (car clients))))
+                              (no-border sw (car mwins))
+                              (no-border sh (car mwins))))
              (else
-              (resize-client! (car clients)
+              (resize-w/hints (car mwins)
                               sx
                               sy
-                              (no-border zoom-width (car clients))
-                              (no-border sh (car clients)))
-              (tile-client-rect (cdr clients)
-                                zoom-width
-                                sy
-                                (- sw zoom-width)
-                                sh))))))
-  (restack (current-display) screen (clients-stack screen)))
+                              (- (no-border zoom-width (car mwins)) (* 2 gap))
+                              (no-border sh (car mwins)))
+              (tile-rect (cdr mwins) zoom-width sy (- sw zoom-width) sh))))))
+  (restack (current-display) screen (screen-stack-list screen)))
 
 (define (fullscreen screen)
   (call-with-managed-area
    screen
    (lambda (sx sy sw sh)
-     (for-each (lambda (c)
-                 (resize-client! c
-                                 sx
-                                 sy
-                                 (no-border sw c)
-                                 (no-border sh c)))
-               (filter client-tiled? (clients-stack screen)))))
-  (restack (current-display) screen (clients-stack screen)))
+     (for-each
+      (lambda (m)
+        (resize-w/hints m sx sy (no-border sw m) (no-border sh m)))
+      (filter mwin-tiled? (screen-stack-list screen)))))
+  (restack (current-display) screen (screen-stack-list screen)))

@@ -43,15 +43,15 @@
 
 (define bindings '())
 
-(define (setup-window-bindings! win bindings)
-  (x-ungrab-key (current-display) x#+any-key+ x#+any-modifier+ win)
+(define (setup-window-bindings dpy win bindings)
+  (x-ungrab-key dpy x#+any-key+ x#+any-modifier+ win)
   (for-each
     (lambda (key)
-      (let ((code (x-keysym-to-keycode (current-display) (vector-ref key 1))))
+      (let ((code (x-keysym-to-keycode dpy (vector-ref key 1))))
         (if (and code (not (zero? (char->integer code))))
             (for-each
               (lambda (mod)
-                (x-grab-key (current-display)
+                (x-grab-key dpy
                             (char->integer code)
                             (bitwise-ior (vector-ref key 0) mod)
                             win
@@ -61,10 +61,11 @@
               (cons 0 +ignored-modifiers+)))))
     bindings))
 
-(define (setup-bindings!)
+(define (setup-bindings)
   (do ((i 0 (+ i 1)))
       ((>= i (vector-length *screens*)))
-    (setup-window-bindings! (screen-root (vector-ref *screens* i)) bindings)))
+    (setup-window-bindings
+     (current-display) (screen-root (vector-ref *screens* i)) bindings)))
 
 (define (keysym<-string s)
   (let ((name (assoc s +key-names+)))

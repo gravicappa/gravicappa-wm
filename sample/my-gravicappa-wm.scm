@@ -1,13 +1,13 @@
 ;; including library where (un)tag, view-tag, update-tag-status,
 ;; toggle-fullscreen, eval-from-string, split-string are defined
-(load "~/dev/gravicappa-wm/sample/utils.scm")
-(load "~/dev/gravicappa-wm/sample/pipe-command.scm")
-(load "~/dev/gravicappa-wm/sample/dmenu.scm")
+(load "~/d/gravicappa-wm/sample/utils.scm")
+(load "~/d/gravicappa-wm/sample/pipe-command.scm")
+(load "~/d/gravicappa-wm/sample/dmenu.scm")
 
-(set! border-colour #xe0f0e0)
-(set! selected-border-colour #xaf00f0)
+(set! border-colour #xf0e7e7)
+(set! selected-border-colour #xf09000)
 (set! border-width 1)
-(set! initial-tag "^")
+(set! gap 1)
 
 (define *tags-fifo*
   (string-append "/tmp/gravicappa-wm.tags" (getenv "DISPLAY")))
@@ -21,7 +21,7 @@
 
 (define (update-tag-status)
   (let loop ((tags (collect-all-tags))
-             (str (string-append (current-tag)
+             (str (string-append current-tag
                                  " "
                                  (string-current-layout)
                                  " <"
@@ -29,60 +29,36 @@
                                  ">")))
     (if (pair? tags)
         (loop (cdr tags)
-              (if (or (string=? (car tags) (current-tag))
+              (if (or (string=? (car tags) current-tag)
                       (string=? (car tags) prev-tag))
                   str
                   (string-append str " " (car tags))))
         (write-to-pipe str *tags-fifo*))))
 
-(define (parse-tags str)
-  (if (and (string? str) (positive? (string-length str)))
-      (split-string #\space str)
-      '()))
-
-(define (tag c)
-  (if (client? c)
-      (for-each
-        (lambda (t) (tag-client c t))
-        (parse-tags (dmenu "Tag client:" (collect-all-tags))))))
-
-(define (untag c)
-  (if (client? c)
-      (for-each
-        (lambda (t) (untag-client c t))
-        (parse-tags (dmenu "Untag client:" (client-tags c))))))
-
-(define (toggle-fullscreen)
-  (view-clients (current-tag) (if (eq? current-layout fullscreen)
-                                  tile
-                                  fullscreen)))
-
 (define (tm-switch-to) 
-  (write-to-pipe (string-append "switch_to " (current-tag)) *timing-fifo*))
+  (write-to-pipe (string-append "switch_to " current-tag) *timing-fifo*))
 
-;; After start we see updated tagbar
+;; After start we update status bar
 (update-tag-status)
 
-;; Updating tagbar every time it changes
+;; Update tagbar every time it changes
 (define update-tag-hook update-tag-status)
 
-(bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
+(bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "st&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
 (bind-key x#+mod4-mask+ "j" focus-before)
 (bind-key x#+mod4-mask+ "k" focus-after)
 (bind-key x#+mod4-mask+ "l" focus-right)
-(bind-key x#+mod4-mask+ "a" focus-previous)
-(bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
-(bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
-(bind-key x#+mod4-mask+ "p" (lambda () (shell-command "$DMENU_RUN &")))
+(bind-key x#+mod4-mask+ "o" (lambda () (zoom-mwin current-mwin)))
+(bind-key x#+mod4-mask+ "c" (lambda () (kill-mwin current-mwin)))
+(bind-key x#+mod4-mask+ "p" (lambda () (shell-command "dmenu_run&")))
 (bind-key x#+mod4-mask+ "f" toggle-fullscreen)
-(bind-key x#+mod4-mask+ "m" (lambda () (tag (current-client))))
+(bind-key x#+mod4-mask+ "m" (lambda () (tag current-mwin)))
 (bind-key x#+mod4-mask+ "r" (lambda ()
-                              (view-tag prev-tag)
+                              (view-prev-tag)
                               (tm-switch-to)))
 
-(bind-key x#+mod4-mask+ "u" (lambda () (untag-client (current-client)
-                                                     (current-tag))))
+(bind-key x#+mod4-mask+ "u" (lambda () (untag-mwin current-mwin current-tag)))
 
 (bind-key x#+mod4-mask+ "t" (lambda ()
                               (view-tag (dmenu "View:" (collect-all-tags)))
@@ -93,51 +69,53 @@
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+control-mask+)
           "h"
-          (lambda () (resize-client-rel! (current-client) 0 0 -50 0)))
+          (lambda () (resize-rel current-mwin 0 0 -50 0)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+control-mask+)
           "j"
-          (lambda () (resize-client-rel! (current-client) 0 0 0 50)))
+          (lambda () (resize-rel current-mwin 0 0 0 50)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+control-mask+)
           "k"
-          (lambda () (resize-client-rel! (current-client) 0 0 0 -50)))
+          (lambda () (resize-rel current-mwin 0 0 0 -50)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+control-mask+)
           "l"
-          (lambda () (resize-client-rel! (current-client) 0 0 50 0)))
+          (lambda () (resize-rel current-mwin 0 0 50 0)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+shift-mask+)
           "h"
-          (lambda () (resize-client-rel! (current-client) -50 0 0 0)))
+          (lambda () (resize-rel current-mwin -50 0 0 0)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+shift-mask+)
           "j"
-          (lambda () (resize-client-rel! (current-client) 0 50 0 0)))
+          (lambda () (resize-rel current-mwin 0 50 0 0)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+shift-mask+)
           "k"
-          (lambda () (resize-client-rel! (current-client) 0 -50 0 0)))
+          (lambda () (resize-rel current-mwin 0 -50 0 0)))
 
 (bind-key (bitwise-ior x#+mod4-mask+ x#+shift-mask+)
           "l"
-          (lambda () (resize-client-rel! (current-client) 50 0 0 0)))
+          (lambda () (resize-rel current-mwin 50 0 0 0)))
 
-'(bind-key 0 "XF86AudioRaiseVolume"
-          (lambda () (shell-command "amixer set Master 2%+ &")))
+(bind-key 0 "XF86Sleep" (lambda () (shell-command "sudo pm-suspend &")))
 
-'(bind-key 0 "XF86AudioLowerVolume"
-          (lambda () (shell-command "amixer set Master 2%- &")))
+;(bind-key 0 "XF86AudioRaiseVolume"
+;          (lambda () (shell-command "amixer set Master 2%+ &")))
 
-(bind-key 0 "XF86Standby" (lambda () (shell-command "sudo pm-suspend &")))
+;(bind-key 0 "XF86AudioLowerVolume"
+;          (lambda () (shell-command "amixer set Master 2%- &")))
 
-'(bind-key 0 "XF86AudioMute"
-          (lambda () (shell-command "amixer set Master toggle &")))
+;(bind-key 0 "XF86AudioMute"
+;          (lambda () (shell-command "amixer set Master toggle &")))
 
-(bind-key 0 "XF86MonBrightnessUp"
-          (lambda () (shell-command "backlight_samsung 10+&")))
+(bind-key 0 "XF86TouchpadOn"
+          (lambda () (shell-command "synclient TouchpadOff=0")))
 
-(bind-key 0 "XF86MonBrightnessDown"
-          (lambda () (shell-command "backlight_samsung 10-&")))
+(bind-key 0 "XF86TouchpadOff"
+          (lambda () (shell-command "synclient TouchpadOff=1")))
 
-(bind-key x#+mod4-mask+ "g" (lambda () (shell-command "plumb &")))
+(bind-key x#+mod4-mask+ "g" (lambda () (shell-command "runner&")))
+
+(bind-key x#+mod4-mask+ "b" (lambda () (shell-command "xungrab&")))

@@ -1,84 +1,79 @@
-(define (client-tagged? c tag)
-  (and (client? c) (member tag (client-tags c))))
+(define (mwin-tagged? m tag)
+  (and (mwin? m) (member tag (mwin-tags m))))
 
-(define (client-visible? c)
-  (client-tagged? c (current-tag)))
+(define (mwin-visible? m)
+  (mwin-tagged? m current-tag))
 
-(define (client-tiled? c)
-  (and (client-visible? c) (not (client-floating? c))))
+(define (mwin-tiled? m)
+  (and (mwin-visible? m) (not (mwin-floating? m))))
 
-(define (hide-client! c)
+(define (hide-mwin m)
   (x-move-window (current-display)
-                 (client-window c)
-                 (+ (client-x c) (* 2 (screen-w (current-screen))))
-                 (client-y c)))
+                 (mwin-window m)
+                 (+ (mwin-x m) (* 2 (screen-w (current-screen))))
+                 (mwin-y m)))
 
 (define (update-visibility dpy screen)
-  (let loop ((clients (clients-list screen)))
-    (if (pair? clients)
-        (let ((c (car clients)))
+  (let loop ((mwins (screen-mwins-list screen)))
+    (if (pair? mwins)
+        (let ((m (car mwins)))
           (cond
-            ((client-visible? c)
-             (x-move-window dpy (client-window c) (client-x c) (client-y c))
-             (if (client-floating? c)
-                 (resize-client! c
-                                 (client-x c)
-                                 (client-y c)
-                                 (client-w c)
-                                 (client-h c)))
-             (loop (cdr clients)))
-            (else
-              (loop (cdr clients))
-              (hide-client! c)))))))
+           ((mwin-visible? m)
+            (x-move-window dpy (mwin-window m) (mwin-x m) (mwin-y m))
+            (if (mwin-floating? m)
+                (resize-w/hints
+                 m (mwin-x m) (mwin-y m) (mwin-w m) (mwin-h m)))
+            (loop (cdr mwins)))
+           (else
+            (loop (cdr mwins))
+            (hide-mwin m)))))))
 
-(define (focus-client dpy client)
+(define (focus-mwin dpy mwin)
   (let* ((s (current-screen))
-         (c (if (not (and client (client-visible? client)))
-                (find-if client-visible? (clients-stack s))
-                client)))
-    (if (and (current-client) (not (eq? (current-client) c)))
-        (begin
-         (x-ungrab-button dpy
-                          x#+any-button+
-                          x#+any-modifier+
-                          (client-window (current-client)))
-         (x-set-window-border dpy
-                              (client-window (current-client))
-                              (get-colour dpy s border-colour))))
-    (cond ((client? c)
-           (move-client-to-top! c clients-stack s)
-           (grab-buttons! c)
+         (m (if (not (and mwin (mwin-visible? mwin)))
+                (find-if mwin-visible? (screen-stack-list s))
+                mwin)))
+    (cond ((and current-mwin (not (eq? current-mwin m)))
+           (x-ungrab-button dpy
+                            x#+any-button+
+                            x#+any-modifier+
+                            (mwin-window current-mwin))
            (x-set-window-border dpy
-                                (client-window c)
+                                (mwin-window current-mwin)
+                                (get-colour dpy s border-colour))))
+    (cond ((mwin? m)
+           (move-to-stack-top! m s)
+           (grab-buttons m)
+           (x-set-window-border dpy
+                                (mwin-window m)
                                 (get-colour dpy s selected-border-colour))
            (x-set-input-focus dpy
-                              (client-window c)
+                              (mwin-window m)
                               x#+revert-to-pointer-root+
                               x#+current-time+))
           (else (x-set-input-focus dpy
                                    (screen-root s)
                                    x#+revert-to-pointer-root+
                                    x#+current-time+)))
-    (set! current-client (lambda () c))
+    (set! current-mwin m)
     (focus-hook)))
 
-(define (restack dpy screen clients)
-  (if (current-client)
-      (begin
-        (if (client-floating? (current-client))
-            (x-raise-window dpy (client-window (current-client))))
-        (let loop ((clients (filter client-tiled? clients))
-                   (sibling x#+none+))
-          (if (pair? clients)
-              (let ((c (car clients)))
-                (if (not (client-floating? c))
-                    (x-configure-window dpy
-                                        (client-window c)
-                                        sibling: sibling
-                                        stack-mode: x#+below+))
-                (loop (cdr clients) (client-window c)))))
-        (x-sync dpy #f)
-        (do () ((not (x-check-mask-event dpy x#+enter-window-mask+)))))))
+(define (restack dpy screen mwins)
+  (cond (current-mwin
+         (if (mwin-floating? current-mwin)
+             (x-raise-window dpy (mwin-window current-mwin)))
+         (let loop ((mwins (filter mwin-tiled? mwins))
+                    (sibling x#+none+))
+           (if (pair? mwins)
+               (let ((m (car mwins)))
+                 (if (not (mwin-floating? m))
+                     (x-configure-window dpy
+                                         (mwin-window m)
+                                         sibling: sibling
+                                         stack-mode: x#+below+))
+                 (loop (cdr mwins) (mwin-window m)))))
+         (x-sync dpy #f)
+         (do () ((not (x-check-mask-event dpy x#+enter-window-mask+)))))))
 
 (define (call-with-managed-area screen ret)
   (ret (+ (screen-x screen) (vector-ref borders 0))
@@ -86,14 +81,14 @@
        (- (screen-w screen) (vector-ref borders 0) (vector-ref borders 2))
        (- (screen-h screen) (vector-ref borders 1) (vector-ref borders 3))))
 
-(define (no-border a client)
-  (- a (* 2 (client-border client))))
+(define (no-border a mwin)
+  (- a (* 2 (mwin-border mwin))))
 
 (define current-layout tile)
 
 (define (arrange-screen dpy screen)
   (update-visibility dpy screen)
-  (focus-client dpy #f)
+  (focus-mwin dpy #f)
   (current-layout screen)
   (x-sync dpy #f))
 

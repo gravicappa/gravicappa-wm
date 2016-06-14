@@ -1,19 +1,21 @@
 (define *user-config-file* "~/.gravicappa-wm.scm")
 
 ;;; defaults
-(define border-colour #xf0f0a0)
-(define selected-border-colour #x00af00)
+(define border-colour #xf0e7e7)
+(define selected-border-colour #xf09000)
 (define border-width 1)
 (define borders (vector 0 16 0 0))
+(define gap 1)
 (define initial-tag "First")
+(define current-tag initial-tag)
 
 (bind-key x#+mod4-mask+ "Return" (lambda () (shell-command "xterm&")))
 (bind-key x#+mod4-mask+ "h" focus-left)
 (bind-key x#+mod4-mask+ "j" focus-before)
 (bind-key x#+mod4-mask+ "k" focus-after)
 (bind-key x#+mod4-mask+ "l" focus-right)
-(bind-key x#+mod4-mask+ "o" (lambda () (zoom-client (current-client))))
-(bind-key x#+mod4-mask+ "c" (lambda () (kill-client! (current-client))))
+(bind-key x#+mod4-mask+ "o" (lambda () (zoom-mwin current-mwin)))
+(bind-key x#+mod4-mask+ "c" (lambda () (kill-mwin current-mwin)))
 (bind-key x#+mod4-mask+ "1" (lambda () (focus-nth 1)))
 (bind-key x#+mod4-mask+ "2" (lambda () (focus-nth 2)))
 (bind-key x#+mod4-mask+ "3" (lambda () (focus-nth 3)))
@@ -25,12 +27,14 @@
 (bind-key x#+mod4-mask+ "9" (lambda () (focus-nth 9)))
 (bind-key x#+mod4-mask+ "0" (lambda () (focus-nth 10)))
 
-(define shutdown-hook (lambda () #f))
-(define update-tag-hook (lambda () #f))
-(define client-create-hook (lambda (client classname) #f))
-(define focus-hook (lambda () #f))
+(define (shutdown-hook) #f)
+(define (update-tag-hook) #f)
+(define (mwin-create-hook mwin classname) #f)
+(define (focus-hook) #f)
+(define (tag-hook c tag) #t)
+(define (untag-hook c tag) #t)
 
-(define current-client (lambda () #f))
+(define current-mwin #f)
 (define current-display (lambda () #f))
 (define atoms (make-table))
 
@@ -57,15 +61,16 @@
 
 (define (xatom name) (table-ref atoms name))
 
-(define (init-atoms!)
-  (for-each (lambda (a) (atom-set! (current-display) a))
+(define (init-atoms dpy)
+  (for-each (lambda (a) (table-set! atoms a (x-intern-atom dpy a #f)))
             '("WM_STATE"
               "WM_DELETE_WINDOW"
               "WM_PROTOCOLS"
               "_NET_WM_NAME"
-              "_NET_SUPPORTED")))
+              "_NET_SUPPORTED"
+              "_NET_WM_STATE"
+              "_NET_WM_STATE_FULLSCREEN")))
 
-(define (init-error-handler!) (set-x-error-handler! wm-error-handler))
 (define (nop-handler _) #t)
 
 (define (handle-x11-event ev)
@@ -80,13 +85,13 @@
          (cond ((positive? (x-pending dpy))
                 (handle-x11-event (x-next-event dpy))
                 (loop))))
-       (##gc)
        #t)))
   (main-loop))
 
-(define (load-user-config!)
-  (if (file-exists? *user-config-file*)
-      (load *user-config-file*)))
+(define (load-user-config)
+  (let ((cfg (getenv "GRAVICAPPA_WM_CFG" *user-config-file*)))
+    (if (file-exists? cfg)
+        (load cfg))))
 
 (define (main . args)
   (dynamic-wind
@@ -95,12 +100,12 @@
                               (lambda () dpy)))
       (if (not (current-display))
           (error "Unable to open display"))
-      (init-atoms!)
-      (init-error-handler!)
-      (init-all-screens!)
-      (load-user-config!)
-      (setup-bindings!)
-      (pickup-windows!))
+      (init-atoms (current-display))
+      (set-x-error-handler! wm-error-handler)
+      (init-all-screens (current-display))
+      (load-user-config)
+      (setup-bindings)
+      (pickup-windows (current-display)))
     (lambda ()
       (x-sync (current-display) #f)
       (main-loop))

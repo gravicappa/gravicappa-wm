@@ -1,5 +1,5 @@
-(define-record-type screen
-  (make-screen id x y w h root display view clients stack)
+(define-record-type <screen>
+  (make-screen id x y w h root display mwins stack)
   screen?
   (id screen-id)
   (x screen-x set-screen-x!)
@@ -8,17 +8,30 @@
   (h screen-h set-screen-h!)
   (root screen-root)
   (display screen-display)
-  (clients screen-clients set-screen-clients!)
-  (stack screen-stack set-screen-stack!)
-  (view screen-view set-screen-view!))
+  (mwins screen-mwins-obj set-screen-mwins-obj!)
+  (stack screen-stack-obj set-screen-stack-obj!))
 
 (define *screens* (vector))
 (define *current-screen-index* 0)
 
-(define (current-screen)
-  (vector-ref *screens* *current-screen-index*))
+(define (current-screen) (vector-ref *screens* *current-screen-index*))
 
-(define (current-tag) (screen-view (current-screen)))
+(define mk-screen-mwins list)
+(define mk-screen-stack list)
+(define screen-mwins-list screen-mwins-obj)
+(define screen-stack-list screen-stack-obj)
+
+(define (screen-mwins-add! x s)
+  (set-screen-mwins-obj! s (cons x (screen-mwins-obj s))))
+
+(define (screen-mwins-rm! x s)
+  (set-screen-mwins-obj! s (remove x (screen-mwins-obj s))))
+
+(define (screen-stack-add! x s)
+  (set-screen-stack-obj! s (cons x (screen-stack-obj s))))
+
+(define (screen-stack-rm! x s)
+  (set-screen-stack-obj! s (remove x (screen-stack-obj s))))
 
 (define +root-event-mask+ (bitwise-ior x#+substructure-redirect-mask+
                                        x#+substructure-notify-mask+
@@ -36,52 +49,55 @@
                               (x-display-height dpy i)
                               root
                               dpy
-                              initial-tag
-                              '()
-                              '())))
+                              (mk-screen-mwins)
+                              (mk-screen-stack))))
     (x-change-property-atoms dpy
                              root
                              (xatom "_NET_SUPPORTED")
                              (list (xatom "_NET_SUPPORTED")
-                                   (xatom "_NET_WM_NAME")))
+                                   (xatom "_NET_WM_NAME")
+                                   (xatom "_NET_WM_STATE")
+                                   (xatom "_NET_WM_STATE_FULLSCREEN")))
     (x-change-window-attributes dpy root event-mask: +root-event-mask+)
     (x-select-input dpy root +root-event-mask+)
     screen))
 
-(define (init-all-screens!)
-  (let ((num (x-screen-count (current-display))))
+(define (init-all-screens dpy)
+  (let ((num (x-screen-count dpy)))
     (set! *screens* (make-vector num))
     (do ((i 0 (+ i 1)))
         ((>= i num))
-      (vector-set! *screens* i (init-screen (current-display) i)))))
-
-(define (find-in-vector test v)
-  (let loop ((i 0))
-    (if (< i (vector-length v))
-        (if (test (vector-ref v i))
-            (vector-ref v i)
-            (loop (+ i 1)))
-        #f)))
+      (vector-set! *screens* i (init-screen dpy i)))))
 
 (define (find-screen parent)
   (find-in-vector (lambda (s) (eq? (screen-root s) parent)) *screens*))
 
-(define (find-client-on-screen window screen)
-  (find-if (lambda (c) (eq? (client-window c) window)) (clients-list screen)))
+(define (find-mwin-on-screen window screen)
+  (find-if (lambda (c) (eq? (mwin-window c) window))
+           (screen-mwins-list screen)))
 
-(define (find-client window)
+(define (find-mwin window)
   (let loop ((i 0))
     (if (< i (vector-length *screens*))
-        (or (find-client-on-screen window (vector-ref *screens* i))
+        (or (find-mwin-on-screen window (vector-ref *screens* i))
             (loop (+ i 1)))
         #f)))
 
-(define (pickup-windows!)
+(define (pickup-windows dpy)
+  (define (pickup win screen)
+    (let ((wa (x-get-window-attributes dpy win)))
+      (if (and (not (= win x#+none+))
+               (not (x-window-attributes-override-redirect? wa))
+               (or (= (x-window-attributes-map-state wa) x#+is-viewable+)
+                   (= (x-get-window-property dpy win (xatom "_NET_WM_STATE"))
+                      x#+iconic-state+)))
+          (manage-mwin win (make-mwin win wa screen)))))
+  
   (do ((i 0 (+ i 1)))
       ((>= i (vector-length *screens*)))
-    (for-each
-      (lambda (w)
-        (if (not (= w x#+none+))
-            (pickup-window (current-display) (vector-ref *screens* i) w)))
-      (x-query-tree (current-display)
-                    (screen-root (vector-ref *screens* i))))))
+    (let ((wins (x-query-tree dpy (screen-root (vector-ref *screens* i)))))
+      (do ((j 0 (+ j 1)))
+          ((>= j (u32vector-length wins)))
+        (let ((win (u32vector-ref wins j)))
+          (if (not (= win x#+none+))
+              (pickup win (vector-ref *screens* i))))))))

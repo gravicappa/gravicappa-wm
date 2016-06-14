@@ -21,7 +21,7 @@ deps = $(wildcard *.scm)
 all: $(exe) stdio
 
 clean:
-	-rm *.c *.o *.o* $(executable) 2>/dev/null
+	rm -f *.c *.o *.o* $(executable)
 
 $(exe): $(src) $(deps)
 	$(GSC) $(GSCFLAGS) -exe -o $@ $(src)

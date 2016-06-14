@@ -89,6 +89,21 @@ get_win_info(xcb_window_t win, int r[4], xcb_screen_t **scr)
   return 0;
 }
 
+int
+include_win(xcb_window_t win, int r[4], xcb_screen_t *scr)
+{
+  xcb_get_window_attributes_reply_t *wa;
+  xcb_get_window_attributes_cookie_t cookie;
+
+  if (scr->root == win || r[0] > scr->width_in_pixels
+      || r[1] > scr->height_in_pixels || r[0] + r[2] <= 0 || r[1] + r[3] <= 0)
+    return 0;
+
+  cookie = xcb_get_window_attributes(c, win);
+  wa = xcb_get_window_attributes_reply(c, cookie, 0);
+  return wa && !wa->override_redirect;
+}
+
 void
 init_font()
 {
@@ -252,7 +267,9 @@ main(int argc, char **argv)
   init_font();
   while (fgets(buf, sizeof(buf), stdin))
     if (sscanf(buf, "%u", &win) == 1
-        && !get_win_info(win, r, &s) && !mk_num_window(s, r, n))
+        && !get_win_info(win, r, &s)
+        && include_win(win, r, s)
+        && !mk_num_window(s, r, n))
       ++n;
   if (n) {
     xcb_flush(c);

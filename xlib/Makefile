@@ -1,4 +1,4 @@
-GSC = gsc
+GSC = gambitc
 -include config.mk
 
 LDFLAGS += -lX11
@@ -8,7 +8,7 @@ LDFLAGS += -lX11
 all: xlib.o1
 
 xlib.o1: xlib.scm ffi.scm xlib-constants.scm xlib-structs.scm
-	-rm xlib.o* 2>/dev/null
+	rm -f xlib.o*
 	$(GSC) -ld-options "-lX11" xlib.scm
 
 clean:

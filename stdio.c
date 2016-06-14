@@ -55,22 +55,21 @@ serve_process(int fd)
 }
 
 static int
-set_noecho(int fd)
+set_raw(int fd)
 {
-  struct termios stermios;
+  struct termios tis;
 
-  if (tcgetattr(fd, &stermios) < 0)
+  if (tcgetattr(fd, &tis) < 0)
     return 1;
 
-  stermios.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
-  stermios.c_lflag |= ICANON;
-  /* stermios.c_oflag &= ~(ONLCR); */
-  /* would also turn off NL to CR/NL mapping on output */
-  stermios.c_cc[VERASE] = 0177;
-#ifdef VERASE2
-  stermios.c_cc[VERASE2] = 0177;
-#endif
-  if (tcsetattr(fd, TCSANOW, &stermios) < 0)
+  tis.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL
+                   | IXON);
+  tis.c_oflag &= ~OPOST;
+  tis.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  tis.c_cflag &= ~(CSIZE | PARENB);
+  tis.c_cflag |= CS8;
+
+  if (tcsetattr(fd, TCSANOW, &tis) < 0)
     return 1;
   return 0;
 }
@@ -110,7 +109,7 @@ main(int argc, char **argv)
         return -1;
 
       case 0:
-        set_noecho(0);
+        set_raw(0);
         execvp(argv[i], argv + i);
         perror("exec");
         return -1;

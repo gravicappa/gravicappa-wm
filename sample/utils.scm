@@ -63,11 +63,30 @@
 (define (view-tag tag)
   (if (and (string? tag) (positive? (string-length tag)))
       (begin
-        (if (not (string=? (current-tag) tag))
-            (set! prev-tag (current-tag)))
-        (view-clients tag current-layout))))
+        (if (not (string=? current-tag tag))
+            (set! prev-tag current-tag))
+        (view-mwins tag current-layout))))
+
+(define (view-prev-tag) (view-tag prev-tag))
 
 (define (parse-tags str)
   (if (and (string? str) (positive? (string-length str)))
       (split-string #\space str)
       '()))
+
+(define (tag m)
+  (if (mwin? m)
+      (for-each
+        (lambda (t) (tag-mwin m t))
+        (parse-tags (dmenu "Tag:" (collect-all-tags))))))
+
+(define (untag m)
+  (if (mwin? m)
+      (for-each
+        (lambda (t) (untag-mwin m t))
+        (parse-tags (dmenu "Untag:" (mwin-tags m))))))
+
+(define (toggle-fullscreen)
+  (view-mwins current-tag
+              (cond ((eq? current-layout fullscreen) tile)
+                    (else (zoom-client current-mwin fullscreen)))))
