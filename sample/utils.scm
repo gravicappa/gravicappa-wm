@@ -89,4 +89,4 @@
 (define (toggle-fullscreen)
   (view-mwins current-tag
               (cond ((eq? current-layout fullscreen) tile)
-                    (else (zoom-client current-mwin fullscreen)))))
+                    (else (zoom-mwin current-mwin) fullscreen))))
