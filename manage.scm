@@ -413,12 +413,12 @@
   (define (send-kill-message m)
     (let ((ev (make-x-event-box))
           (win (mwin-window m)))
-      (set-x-client-message-event-type! ev x#+mwin-message+)
+      (set-x-client-message-event-type! ev x#+client-message+)
       (set-x-client-message-event-window! ev win)
       (set-x-client-message-event-message-type! ev (xatom "WM_PROTOCOLS"))
       (set-x-client-message-event-format! ev 32)
-      (set-x-client-message-event-data-l! ev 0 (xatom "WM_DELETE_WINDOW"))
-      (set-x-client-message-event-data-l! ev 1 x#+current-time+)
+      (x-client-message-event-data-l-set! ev 0 (xatom "WM_DELETE_WINDOW"))
+      (x-client-message-event-data-l-set! ev 1 x#+current-time+)
       (x-send-event (current-display) win #f x#+no-event-mask+ ev)))
 
   (if m

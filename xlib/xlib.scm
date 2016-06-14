@@ -134,6 +134,14 @@ end-of-c-declare
      ev obj)
     obj))
 
+(define x-client-message-event-data-l-ref
+  (c-lambda (XEvent* int) long
+            "___result = ___arg1->xclient.data.l[___arg2];"))
+
+(define x-client-message-event-data-l-set!
+  (c-lambda (XEvent* int long) void
+            "___arg1->xclient.data.l[___arg2] = ___arg3;"))
+
 (define x-size-hints-min-aspect-x
   (c-lambda (XSizeHints*) int "___result = ___arg1->min_aspect.x;"))
 
