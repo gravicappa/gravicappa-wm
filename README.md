@@ -32,11 +32,11 @@ It is called on exit.
 
 It is called when taglist is updated.
 
-### (client-create-hook client classname)
+### (mwin-create-hook client classname)
 
-It is called with new `client` is created before it is mapped. Automatic
-tagging can be performed here. `classname` is cons of strings with x11 window
-class information.
+It is called with new managed window (`mwin`) is created before it is mapped.
+Automatic tagging can be performed here. `classname` is cons of strings with
+x11 window class information.
 
 ### (tag-hook client tag)
 
