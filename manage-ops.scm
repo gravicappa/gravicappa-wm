@@ -71,7 +71,7 @@
              (mwins (filter mwin-tiled? (screen-mwins-list s))))
         (if (and (pair? mwins)
                  (not (eq? mwin (car mwins))))
-            (move-to-mwins-top! mwin s))
+            (move-to-mwin-top! mwin s))
         (arrange-screen (current-display) s))))
 
 (define (collect-all-tags)
